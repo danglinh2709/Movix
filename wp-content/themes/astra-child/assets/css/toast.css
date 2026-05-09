@@ -1,0 +1,39 @@
+/**
+ * Toast notifications (paired with assets/js/toast.js)
+ * Place: wp-content/themes/astra-child/assets/css/toast.css
+ */
+:root { --mu-toast-ease: cubic-bezier(.2,.9,.2,1); }
+.mu-toast-root{
+  position:fixed; z-index:2400; right:16px; top:16px;
+  width:min(420px, calc(100% - 32px));
+  display:flex; flex-direction:column; gap:10px;
+  pointer-events:none;
+}
+@media (max-width:720px){
+  .mu-toast-root{ left:16px; right:16px; top:auto; bottom:86px; width:auto; }
+}
+.mu-toast{
+  pointer-events:auto; border-radius:18px;
+  background:rgba(10,10,10,.62);
+  border:1px solid rgba(255,255,255,.12);
+  backdrop-filter: blur(16px) saturate(140%);
+  box-shadow:0 20px 70px rgba(0,0,0,.55);
+  display:grid; grid-template-columns:10px 1fr auto; align-items:stretch;
+  transform:translateY(-8px); opacity:0;
+  animation: muToastIn .28s var(--mu-toast-ease) forwards;
+}
+@keyframes muToastIn { to { transform:translateY(0); opacity:1; } }
+.mu-toast.is-leaving{ animation: muToastOut .22s var(--mu-toast-ease) forwards; }
+@keyframes muToastOut { to { transform:translateY(-8px); opacity:0; } }
+.mu-toast__bar{ background:rgba(255,255,255,.18); }
+.mu-toast--success .mu-toast__bar{ background:rgba(46,204,113,.78); }
+.mu-toast--error .mu-toast__bar{ background:rgba(229,9,20,.85); }
+.mu-toast--warning .mu-toast__bar{ background:rgba(241,196,15,.78); }
+.mu-toast--info .mu-toast__bar{ background:rgba(52,152,219,.78); }
+.mu-toast__body{ padding:12px; }
+.mu-toast__title{ font-weight:800; font-size:13px; color:rgba(255,255,255,.92); }
+.mu-toast__msg{ margin-top:4px; font-size:12px; color:rgba(255,255,255,.72); line-height:1.45; }
+.mu-toast__close{
+  width:44px; border:0; background:transparent; color:rgba(255,255,255,.82);
+  cursor:pointer; font-weight:800;
+}

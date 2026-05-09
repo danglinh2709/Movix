@@ -1,0 +1,1488 @@
+/**
+ * ============================================================
+ * Premium OTT Watch Player CSS
+ * Premium streaming video player with cinematic controls
+ * ============================================================
+ */
+
+/* ============================================================
+   CSS VARIABLES
+   ============================================================ */
+:root {
+  --player-bg: #000000;
+  --player-dark: #0a0a0a;
+  --player-accent: #e50914;
+  --player-accent-hover: #ff1a25;
+  --player-text: #ffffff;
+  --player-text-secondary: rgba(255, 255, 255, 0.7);
+  --player-text-muted: rgba(255, 255, 255, 0.5);
+  --player-overlay: rgba(0, 0, 0, 0.7);
+  --player-gradient-top: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%);
+  --player-gradient-bottom: linear-gradient(to top, rgba(0,0,0,0.95) 0%, transparent 60%);
+  --player-control-bg: rgba(30, 30, 30, 0.9);
+  --player-radius: 8px;
+  --player-transition: 0.3s ease;
+}
+
+/* ============================================================
+   BASE PLAYER CONTAINER
+   ============================================================ */
+.mu-watch-page {
+  background: #000;
+  min-height: 100vh;
+  color: var(--player-text);
+  overflow-x: hidden;
+}
+
+.mu-watch-page * {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ============================================================
+   FULLSCREEN PLAYER WRAPPER
+   ============================================================ */
+.mu-player-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  background: #000;
+  overflow: hidden;
+}
+
+.mu-player-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+}
+
+.mu-player-container--fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  aspect-ratio: unset;
+  z-index: 9999;
+}
+
+/* ============================================================
+   VIDEO ELEMENT
+   ============================================================ */
+.mu-player-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  display: block;
+}
+
+.mu-player-container--fullscreen .mu-player-video {
+  object-fit: contain;
+}
+
+/* ============================================================
+   IFRAME EMBED
+   ============================================================ */
+.mu-player-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #000;
+}
+
+/* ============================================================
+   PLAYER OVERLAYS
+   ============================================================ */
+.mu-player-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.mu-player-overlay--top {
+  background: var(--player-gradient-top);
+  padding: 20px;
+  pointer-events: auto;
+}
+
+.mu-player-overlay--bottom {
+  background: var(--player-gradient-bottom);
+  padding: 20px;
+  pointer-events: auto;
+}
+
+/* ============================================================
+   CENTER PLAY BUTTON (when paused)
+   ============================================================ */
+.mu-player-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.mu-player-play-btn {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 3px solid rgba(255, 255, 255, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.mu-player-play-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.mu-player-play-btn svg {
+  width: 32px;
+  height: 32px;
+  fill: #fff;
+  margin-left: 4px;
+}
+
+/* Rewind/Forward buttons */
+.mu-player-rewind,
+.mu-player-forward {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mu-player-rewind {
+  left: 30px;
+}
+
+.mu-player-forward {
+  right: 30px;
+}
+
+.mu-player-container:hover .mu-player-rewind,
+.mu-player-container:hover .mu-player-forward {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.mu-player-rewind:hover,
+.mu-player-forward:hover {
+  background: rgba(0, 0, 0, 0.8);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.mu-player-rewind svg,
+.mu-player-forward svg {
+  width: 24px;
+  height: 24px;
+  fill: #fff;
+}
+
+/* Skip indicator */
+.mu-player-skip-indicator {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 8px 16px;
+  border-radius: 20px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.mu-player-skip-indicator--show {
+  opacity: 1;
+}
+
+.mu-player-rewind .mu-player-skip-indicator {
+  left: 70px;
+}
+
+.mu-player-forward .mu-player-skip-indicator {
+  right: 70px;
+}
+
+/* ============================================================
+   HEADER CONTROLS
+   ============================================================ */
+.mu-player-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  transition: opacity var(--player-transition);
+}
+
+.mu-player-header.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mu-player-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mu-player-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Back button */
+.mu-player-back {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.mu-player-back:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.mu-player-back svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Movie info in header */
+.mu-player-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mu-player-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  line-height: 1.2;
+  max-width: 300px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mu-player-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--player-text-secondary);
+}
+
+.mu-player-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mu-player-meta-dot {
+  width: 3px;
+  height: 3px;
+  background: var(--player-text-muted);
+  border-radius: 50%;
+}
+
+/* Quality/Age badges */
+.mu-player-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.mu-player-badge--quality {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.mu-player-badge--age {
+  background: rgba(229, 9, 20, 0.8);
+  color: #fff;
+}
+
+/* Action buttons */
+.mu-player-action-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.mu-player-action-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.mu-player-action-btn.is-active {
+  background: rgba(229, 9, 20, 0.3);
+  border-color: var(--player-accent);
+}
+
+.mu-player-action-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* ============================================================
+   BOTTOM CONTROLS
+   ============================================================ */
+.mu-player-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mu-player-progress-wrap {
+  position: relative;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.mu-player-progress {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  position: relative;
+  overflow: visible;
+  transition: height 0.2s;
+}
+
+.mu-player-progress-wrap:hover .mu-player-progress {
+  height: 6px;
+}
+
+.mu-player-progress-buffered {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 4px;
+  transition: width 0.1s;
+}
+
+.mu-player-progress-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--player-accent);
+  border-radius: 4px;
+  transition: width 0.1s;
+}
+
+.mu-player-progress-thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: 14px;
+  height: 14px;
+  background: var(--player-accent);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  transition: transform 0.2s;
+}
+
+.mu-player-progress-wrap:hover .mu-player-progress-thumb {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* Progress time tooltip */
+.mu-player-progress-tooltip {
+  position: absolute;
+  bottom: 24px;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.mu-player-progress-wrap:hover .mu-player-progress-tooltip {
+  opacity: 1;
+}
+
+/* Controls row */
+.mu-player-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.mu-player-controls-left,
+.mu-player-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Control buttons */
+.mu-player-ctrl-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.mu-player-ctrl-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.05);
+}
+
+.mu-player-ctrl-btn.is-active {
+  color: var(--player-accent);
+}
+
+.mu-player-ctrl-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Time display */
+.mu-player-time {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--player-text-secondary);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mu-player-time-sep {
+  color: var(--player-text-muted);
+}
+
+/* Volume slider */
+.mu-player-volume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mu-player-volume-slider {
+  width: 0;
+  opacity: 0;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.mu-player-volume:hover .mu-player-volume-slider {
+  width: 80px;
+  opacity: 1;
+}
+
+.mu-player-volume-slider input[type="range"] {
+  width: 80px;
+  height: 4px;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.mu-player-volume-slider input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* Settings dropdown */
+.mu-player-settings-dropdown {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  background: rgba(20, 20, 20, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--player-radius);
+  padding: 12px;
+  min-width: 240px;
+  max-height: 400px;
+  overflow-y: auto;
+  display: none;
+  z-index: 100;
+  margin-bottom: 10px;
+}
+
+.mu-player-settings-dropdown.is-open {
+  display: block;
+}
+
+.mu-player-settings-section {
+  margin-bottom: 16px;
+}
+
+.mu-player-settings-section:last-child {
+  margin-bottom: 0;
+}
+
+.mu-player-settings-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--player-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.mu-player-settings-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--player-text-secondary);
+  transition: all 0.15s;
+}
+
+.mu-player-settings-option:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.mu-player-settings-option.is-active {
+  color: var(--player-accent);
+}
+
+.mu-player-settings-option.is-active::after {
+  content: '✓';
+  font-size: 14px;
+}
+
+/* ============================================================
+   UNVAILABLE STATE
+   ============================================================ */
+.mu-player-unavailable {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+  text-align: center;
+  padding: 40px;
+}
+
+.mu-player-unavailable-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.mu-player-unavailable-icon svg {
+  width: 40px;
+  height: 40px;
+  stroke: var(--player-text-muted);
+}
+
+.mu-player-unavailable-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 8px;
+}
+
+.mu-player-unavailable-desc {
+  font-size: 14px;
+  color: var(--player-text-muted);
+  margin: 0 0 24px;
+  max-width: 400px;
+  line-height: 1.6;
+}
+
+.mu-player-unavailable-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: var(--player-accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.mu-player-unavailable-btn:hover {
+  background: var(--player-accent-hover);
+  transform: translateY(-2px);
+}
+
+/* ============================================================
+   CONTENT SECTION (Below Player) - Initially Hidden
+   ============================================================ */
+.mu-watch-content {
+  display: none; /* Hidden until user clicks "Show More" or exits player */
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 40px 4%;
+}
+
+.mu-watch-content.is-visible {
+  display: block;
+}
+
+.mu-watch-layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 40px;
+}
+
+/* Movie Info */
+.mu-watch-info {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.mu-watch-title {
+  font-size: clamp(24px, 4vw, 36px);
+  font-weight: 800;
+  color: #fff;
+  margin: 0;
+  line-height: 1.1;
+}
+
+.mu-watch-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--player-text-secondary);
+}
+
+.mu-watch-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mu-watch-rating {
+  color: #ffd700;
+  font-weight: 600;
+}
+
+.mu-watch-meta-dot {
+  width: 4px;
+  height: 4px;
+  background: var(--player-text-muted);
+  border-radius: 50%;
+}
+
+.mu-watch-genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mu-watch-genre-tag {
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--player-text-secondary);
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.mu-watch-genre-tag:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.mu-watch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.mu-watch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.mu-watch-btn--primary {
+  background: var(--player-accent);
+  color: #fff;
+}
+
+.mu-watch-btn--primary:hover {
+  background: var(--player-accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(229, 9, 20, 0.4);
+}
+
+.mu-watch-btn--secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.mu-watch-btn--secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.mu-watch-btn--fav.is-on {
+  background: rgba(229, 9, 20, 0.2);
+  border-color: rgba(229, 9, 20, 0.5);
+  color: var(--player-accent);
+}
+
+.mu-watch-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.mu-watch-overview {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--player-text-secondary);
+}
+
+.mu-watch-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.mu-watch-detail-item {
+  display: flex;
+  gap: 8px;
+}
+
+.mu-watch-detail-label {
+  font-size: 13px;
+  color: var(--player-text-muted);
+  min-width: 100px;
+}
+
+.mu-watch-detail-value {
+  font-size: 13px;
+  color: var(--player-text-secondary);
+}
+
+/* Cast Section */
+.mu-watch-cast {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mu-watch-cast-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.mu-watch-cast-list {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.2) transparent;
+}
+
+.mu-watch-cast-list::-webkit-scrollbar {
+  height: 4px;
+}
+
+.mu-watch-cast-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.mu-watch-cast-item {
+  flex-shrink: 0;
+  text-align: center;
+  width: 80px;
+}
+
+.mu-watch-cast-img {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 0 auto 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: var(--player-text-muted);
+}
+
+.mu-watch-cast-name {
+  font-size: 11px;
+  color: var(--player-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ============================================================
+   SIDEBAR (Up Next & Related)
+   ============================================================ */
+.mu-watch-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Up Next Section */
+.mu-watch-upnext {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.mu-watch-upnext-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mu-watch-upnext-title svg {
+  width: 16px;
+  height: 16px;
+  fill: var(--player-accent);
+}
+
+.mu-watch-upnext-card {
+  display: flex;
+  gap: 12px;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: background 0.2s;
+  padding: 8px;
+  margin: -8px;
+}
+
+.mu-watch-upnext-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mu-watch-upnext-thumb {
+  width: 100px;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.mu-watch-upnext-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mu-watch-upnext-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mu-watch-upnext-meta {
+  font-size: 11px;
+  color: var(--player-text-muted);
+  margin: 0 0 8px;
+}
+
+.mu-watch-upnext-progress {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.mu-watch-upnext-progress-bar {
+  height: 100%;
+  background: var(--player-accent);
+  border-radius: 3px;
+}
+
+/* Related Movies Row */
+.mu-watch-related {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mu-watch-related-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.mu-watch-related-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mu-watch-related-item {
+  display: flex;
+  gap: 12px;
+  text-decoration: none;
+  color: inherit;
+  padding: 8px;
+  border-radius: 8px;
+  margin: -8px;
+  transition: background 0.2s;
+}
+
+.mu-watch-related-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mu-watch-related-thumb {
+  width: 80px;
+  aspect-ratio: 2/3;
+  object-fit: cover;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.mu-watch-related-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.mu-watch-related-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mu-watch-related-meta {
+  font-size: 11px;
+  color: var(--player-text-muted);
+  display: flex;
+  gap: 8px;
+}
+
+/* ============================================================
+   EPISODES PANEL
+   ============================================================ */
+.mu-watch-episodes {
+  margin-top: 32px;
+  padding-top: 32px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mu-watch-episodes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.mu-watch-episodes-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.mu-watch-season-select {
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.mu-watch-season-select option {
+  background: #1a1a1a;
+  color: #fff;
+}
+
+.mu-watch-episodes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mu-watch-episode-card {
+  display: flex;
+  gap: 16px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.mu-watch-episode-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.mu-watch-episode-card.is-active {
+  background: rgba(229, 9, 20, 0.1);
+  border-color: rgba(229, 9, 20, 0.3);
+}
+
+.mu-watch-episode-thumb {
+  width: 140px;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.mu-watch-episode-thumb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%);
+}
+
+.mu-watch-episode-play-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.mu-watch-episode-card:hover .mu-watch-episode-play-overlay {
+  opacity: 1;
+}
+
+.mu-watch-episode-play-icon {
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mu-watch-episode-play-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: #000;
+  margin-left: 2px;
+}
+
+.mu-watch-episode-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.mu-watch-episode-num {
+  font-size: 12px;
+  color: var(--player-text-muted);
+  margin: 0 0 4px;
+}
+
+.mu-watch-episode-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 8px;
+  line-height: 1.3;
+}
+
+.mu-watch-episode-desc {
+  font-size: 12px;
+  color: var(--player-text-muted);
+  margin: 0 0 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.4;
+}
+
+.mu-watch-episode-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--player-text-muted);
+}
+
+.mu-watch-episode-progress {
+  width: 60px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.mu-watch-episode-progress-bar {
+  height: 100%;
+  background: var(--player-accent);
+}
+
+/* ============================================================
+   SUBTITLE TRACK STYLING
+   ============================================================ */
+.mu-player-subtitle {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 18px;
+  color: #fff;
+  text-align: center;
+  max-width: 80%;
+  white-space: pre-wrap;
+  pointer-events: none;
+  z-index: 50;
+}
+
+/* ============================================================
+   KEYBOARD SHORTCUTS TOAST
+   ============================================================ */
+.mu-player-shortcuts-toast {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(0, 0, 0, 0.9);
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s ease;
+  z-index: 9999;
+}
+
+.mu-player-shortcuts-toast.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ============================================================
+   LOADING STATE
+   ============================================================ */
+.mu-player-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  z-index: 20;
+}
+
+.mu-player-spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--player-accent);
+  border-radius: 50%;
+  animation: muPlayerSpin 1s linear infinite;
+}
+
+@keyframes muPlayerSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   RESPONSIVE STYLES
+   ============================================================ */
+@media (max-width: 1024px) {
+  .mu-watch-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .mu-watch-sidebar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .mu-player-overlay--top {
+    padding: 16px;
+  }
+
+  .mu-player-overlay--bottom {
+    padding: 16px;
+  }
+
+  .mu-player-title {
+    font-size: 14px;
+    max-width: 160px;
+  }
+
+  .mu-player-meta {
+    display: none;
+  }
+
+  .mu-player-ctrl-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .mu-player-ctrl-btn svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .mu-player-time {
+    font-size: 12px;
+  }
+
+  .mu-watch-sidebar {
+    grid-template-columns: 1fr;
+  }
+
+  .mu-watch-actions {
+    flex-wrap: wrap;
+  }
+
+  .mu-watch-btn {
+    flex: 1;
+    justify-content: center;
+    min-width: 120px;
+    padding: 10px 16px;
+  }
+
+  .mu-watch-details {
+    grid-template-columns: 1fr;
+  }
+
+  .mu-watch-episode-thumb {
+    width: 100px;
+  }
+
+  .mu-watch-episode-title {
+    font-size: 13px;
+  }
+
+  .mu-watch-episode-desc {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .mu-player-container {
+    min-height: 220px;
+  }
+
+  .mu-player-play-btn {
+    width: 56px;
+    height: 56px;
+  }
+
+  .mu-player-play-btn svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .mu-player-header-right {
+    gap: 4px;
+  }
+
+  .mu-player-action-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .mu-player-action-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .mu-watch-content {
+    padding: 20px 4%;
+  }
+
+  .mu-watch-title {
+    font-size: 20px;
+  }
+
+  .mu-watch-related-thumb {
+    width: 60px;
+  }
+
+  .mu-watch-upnext-thumb {
+    width: 80px;
+  }
+
+  .mu-player-rewind {
+    left: 10px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .mu-player-forward {
+    right: 10px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .mu-player-rewind svg,
+  .mu-player-forward svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* ============================================================
+   FULLSCREEN SPECIFIC
+   ============================================================ */
+:fullscreen .mu-player-container,
+:-webkit-full-screen .mu-player-container {
+  background: #000;
+}
+
+:fullscreen .mu-watch-content,
+:-webkit-full-screen ~ .mu-watch-content {
+  display: none;
+}
+
+/* Hide controls in fullscreen on idle */
+.mu-player-container--fullscreen.is-idle .mu-player-overlay--top,
+.mu-player-container--fullscreen.is-idle .mu-player-overlay--bottom {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+
+.mu-player-container--fullscreen.is-idle:hover .mu-player-overlay--top,
+.mu-player-container--fullscreen.is-idle:hover .mu-player-overlay--bottom {
+  opacity: 1;
+  pointer-events: auto;
+}

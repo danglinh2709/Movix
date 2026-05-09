@@ -11,6 +11,8 @@ add_action('wp_enqueue_scripts', function() {
  * ============================================================
  */
 
+require_once __DIR__ . '/inc/movie-system/routing-helpers.php';
+
 // Include Movie Importer System
 require_once __DIR__ . '/inc/movie-system/importer-api.php';
 require_once __DIR__ . '/inc/movie-system/importer-media.php';
@@ -29,18 +31,29 @@ add_action('after_setup_theme', function () {
 // This ensures Astra default header is hidden via CSS.
 // ============================================================
 add_filter('body_class', function (array $classes): array {
+    $app_slugs = mu_streaming_page_slugs();
+
     // Always apply on movie/tv_show archives and singles
     if (
         is_singular(['movie', 'tv_show', 'episode']) ||
         is_post_type_archive(['movie', 'tv_show']) ||
-        is_tax(['genre', 'country', 'actor', 'director']) ||
+        is_tax(['genre', 'country', 'quality', 'language', 'actor', 'director']) ||
         is_front_page() ||
-        is_page(['search', 'watch', 'favorites', 'history', 'trending',
-                 'new-releases', 'top-rated', 'profile', 'vip'])
+        is_404()
     ) {
         $classes[] = 'movie-ui';
         $classes[] = 'movie-ui--no-sidebar';
+        return $classes;
     }
+
+    if (is_page()) {
+        $slug = get_post_field('post_name', get_queried_object_id());
+        if (in_array((string) $slug, $app_slugs, true)) {
+            $classes[] = 'movie-ui';
+            $classes[] = 'movie-ui--no-sidebar';
+        }
+    }
+
     return $classes;
 });
 
@@ -50,22 +63,78 @@ add_filter('body_class', function (array $classes): array {
 // ============================================================
 add_action('after_switch_theme', function () {
     flush_rewrite_rules();
+    update_option('mu_needs_flush', 1);
 });
 // Safety net: flush rewrite rules to ensure /movies/ path is recognized
 add_action('init', function () {
-    if (get_option('mu_needs_flush')) {
+    static $flushed = false;
+    if (!$flushed && (get_option('mu_needs_flush') || isset($_GET['flush_rewrites']))) {
         flush_rewrite_rules();
         delete_option('mu_needs_flush');
+        $flushed = true;
     }
 }, 99);
 
 /**
- * FORCE TEMPLATE: Ensure /movies/ loads archive-movie.php
- * This bypasses issues where WordPress might fall back to front-page.php or index.php
+ * FORCE CPT ARCHIVE: Fix 404 on /movies/ and /tv/ by intercepting early
+ * Also auto-deletes any conflicting pages with same slug.
  */
+// Run only once to clean up conflicting pages
+$mu_cleaned_up = get_option('mu_cleanup_done', false);
+if (!$mu_cleaned_up) {
+    $conflicting_slugs = ['movies', 'tv'];
+    foreach ($conflicting_slugs as $slug) {
+        $page = get_page_by_path($slug, OBJECT, 'page');
+        if ($page instanceof WP_Post) {
+            wp_delete_post($page->ID, true);
+        }
+    }
+    update_option('mu_cleanup_done', true);
+}
+
+add_action('parse_request', function ($wp) {
+    $path = isset($wp->request) ? trim($wp->request, '/') : '';
+    $path = preg_replace('#/page/\d+#', '', $path);
+    
+    // Handle /movies/ → movie CPT archive
+    if ($path === 'movies' || $path === 'movies/') {
+        $wp->query_vars = [
+            'post_type' => 'movie',
+            'posts_per_page' => 24,
+        ];
+        $wp->matched_rule = 'movies/?$';
+    }
+    // Handle /tv/ → tv_show CPT archive  
+    elseif ($path === 'tv' || $path === 'tv/') {
+        $wp->query_vars = [
+            'post_type' => 'tv_show',
+            'posts_per_page' => 24,
+        ];
+        $wp->matched_rule = 'tv/?$';
+    }
+}, 1);
+
 add_filter('template_include', function ($template) {
-    if (is_post_type_archive('movie') || (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/movies/') !== false)) {
+    // Check by post type archive or by direct path
+    $is_movie_archive = is_post_type_archive('movie');
+    $is_tv_archive = is_post_type_archive('tv_show');
+    
+    // Fallback: check request path directly
+    if (!$is_movie_archive && !$is_tv_archive) {
+        $path = isset($_SERVER['REQUEST_URI']) ? trim($_SERVER['REQUEST_URI'], '/') : '';
+        $path = preg_replace('#/page/\d+#', '', $path);
+        $is_movie_archive = ($path === 'movies' || $path === 'movies');
+        $is_tv_archive = ($path === 'tv' || $path === 'tv');
+    }
+    
+    if ($is_movie_archive) {
         $new_template = get_stylesheet_directory() . '/archive-movie.php';
+        if (file_exists($new_template)) {
+            return $new_template;
+        }
+    }
+    if ($is_tv_archive) {
+        $new_template = get_stylesheet_directory() . '/archive-tv_show.php';
         if (file_exists($new_template)) {
             return $new_template;
         }
@@ -173,6 +242,22 @@ add_action('init', function () {
         'rewrite' => ['slug' => 'language'],
         'show_in_rest' => true,
     ]);
+
+    register_taxonomy('actor', $post_types, [
+        'labels' => ['name' => 'Actors', 'singular_name' => 'Actor'],
+        'public' => true,
+        'hierarchical' => false,
+        'rewrite' => ['slug' => 'actor'],
+        'show_in_rest' => true,
+    ]);
+
+    register_taxonomy('director', $post_types, [
+        'labels' => ['name' => 'Directors', 'singular_name' => 'Director'],
+        'public' => true,
+        'hierarchical' => false,
+        'rewrite' => ['slug' => 'director'],
+        'show_in_rest' => true,
+    ]);
 }, 1);
 
 /**
@@ -188,6 +273,10 @@ add_action('wp_enqueue_scripts', function () {
 
     wp_enqueue_style('movie-ui', $uri . '/assets/css/movie-ui.css', ['parent-style'], $ver);
     wp_enqueue_style('movie-ui-toast', $uri . '/assets/css/toast.css', ['movie-ui'], $ver);
+    
+    // Movies Page CSS
+    $movies_ver = filemtime($dir . '/assets/css/movies-page.css') ?: $ver;
+    wp_enqueue_style('movies-page', $uri . '/assets/css/movies-page.css', ['movie-ui'], $movies_ver);
 
     // Swiper
     wp_enqueue_style('swiper', 'https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css', [], '11');
@@ -196,12 +285,19 @@ add_action('wp_enqueue_scripts', function () {
     // HLS.js for .m3u8 playback (player)
     wp_enqueue_script('hls', 'https://cdn.jsdelivr.net/npm/hls.js@1.5.18/dist/hls.min.js', [], '1.5.18', true);
 
-    // Modular UI scripts (loaded before core)
+    // Modular UI scripts — all in one bundle
     wp_enqueue_script('movie-ui-toast', $uri . '/assets/js/toast.js', [], $ver, true);
-    wp_enqueue_script('movie-ui-search', $uri . '/assets/js/search.js', ['movie-ui-toast'], $ver, true);
-    wp_enqueue_script('movie-ui-trailer-preview', $uri . '/assets/js/trailer-preview.js', ['movie-ui-toast'], $ver, true);
+    wp_enqueue_script('movie-ui', $uri . '/assets/js/movie-ui.js', ['swiper', 'hls', 'movie-ui-toast'], $ver, true);
 
-    wp_enqueue_script('movie-ui', $uri . '/assets/js/movie-ui.js', ['swiper', 'hls', 'movie-ui-toast', 'movie-ui-search', 'movie-ui-trailer-preview'], $ver, true);
+    // Premium OTT Player assets (only on watch page)
+    $player_ver = filemtime($dir . '/assets/css/ms-player.css') ?: $ver;
+    wp_enqueue_style('ms-player', $uri . '/assets/css/ms-player.css', ['movie-ui'], $player_ver);
+    wp_enqueue_script('ms-player', $uri . '/assets/js/ms-player.js', ['movie-ui'], $player_ver, true);
+
+    // Premium OTT History page assets
+    $history_ver = filemtime($dir . '/assets/css/ms-history.css') ?: $ver;
+    wp_enqueue_style('ms-history', $uri . '/assets/css/ms-history.css', ['movie-ui'], $history_ver);
+    wp_enqueue_script('ms-history', $uri . '/assets/js/ms-history.js', ['movie-ui'], $history_ver, true);
 
     wp_localize_script('movie-ui', 'MOVIE_UI', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
@@ -211,12 +307,17 @@ add_action('wp_enqueue_scripts', function () {
         'progressNonce' => wp_create_nonce('movie_ui_progress'),
         'isLoggedIn' => is_user_logged_in(),
         'homeUrl' => home_url('/'),
-        'watchUrl' => home_url('/watch/'),
-        'searchUrl' => home_url('/search/'),
-        'myListUrl' => home_url('/favorites/'),
-        'topRatedUrl' => home_url('/top-rated/'),
-        'trendingUrl' => home_url('/trending/'),
-        'newReleasesUrl' => home_url('/new-releases/'),
+        'watchUrl' => mu_get_page_url_by_slug('watch'),
+        'searchUrl' => mu_get_page_url_by_slug('search'),
+        'myListUrl' => mu_get_page_url_by_slug('favorites'),
+        'historyUrl' => mu_get_page_url_by_slug('history'),
+        'profileUrl' => mu_get_page_url_by_slug('profile'),
+        'vipUrl' => mu_get_page_url_by_slug('vip'),
+        'topRatedUrl' => mu_get_page_url_by_slug('top-rated'),
+        'trendingUrl' => mu_get_page_url_by_slug('trending'),
+        'newReleasesUrl' => mu_get_page_url_by_slug('new-releases'),
+        'moviesArchiveUrl' => trailingslashit(home_url('movies')),
+        'tvArchiveUrl' => trailingslashit(home_url('tv')),
     ]);
 }, 30);
 
@@ -227,16 +328,22 @@ function movie_ui_is_app_page() : bool {
     if (is_front_page()) return true;
     if (is_post_type_archive(['movie', 'tv_show'])) return true;
     if (is_singular(['movie', 'tv_show', 'episode'])) return true;
-    if (is_tax(['genre', 'country', 'quality', 'language'])) return true;
+    if (is_tax(['genre', 'country', 'quality', 'language', 'actor', 'director'])) return true;
 
     if (is_page()) {
         $slug = get_post_field('post_name', get_queried_object_id());
-        $app_slugs = ['watch', 'search', 'favorites', 'history', 'profile', 'vip'];
-        return in_array($slug, $app_slugs, true);
+        return in_array((string) $slug, mu_streaming_page_slugs(), true);
     }
 
     return false;
 }
+
+add_action('wp_footer', function () : void {
+    if (!movie_ui_is_app_page() && !is_404()) {
+        return;
+    }
+    get_template_part('template-parts/streaming/search-overlay');
+}, 35);
 
 // Redundant body_class filter removed to avoid conflicts
 
@@ -280,6 +387,111 @@ function movie_ui_render_movie_card(int $post_id) : void {
 }
 
 /**
+ * Home page carousel row (horizontal swiper).
+ */
+function mu_front_render_carousel(string $label, WP_Query $q, string $suffix) : void {
+    ?>
+    <?php if ($q->have_posts()) : ?>
+        <section class="mu-row" id="<?php echo esc_attr($suffix); ?>">
+            <div class="mu-row-inner">
+                <div class="mu-row__head">
+                    <h2 class="mu-row__title"><?php echo esc_html($label); ?></h2>
+                    <div class="mu-row__nav">
+                        <button class="mu-navbtn mu-navbtn--prev" type="button" aria-label="<?php esc_attr_e('Previous', 'astra-child'); ?>" data-mu-row-prev="<?php echo esc_attr($suffix); ?>"></button>
+                        <button class="mu-navbtn mu-navbtn--next" type="button" aria-label="<?php esc_attr_e('Next', 'astra-child'); ?>" data-mu-row-next="<?php echo esc_attr($suffix); ?>"></button>
+                    </div>
+                </div>
+                <div class="mu-swiper-wrap" data-mu-swiper-wrap="<?php echo esc_attr($suffix); ?>">
+                    <div class="swiper mu-swiper" data-mu-swiper="row">
+                        <div class="swiper-wrapper">
+                            <?php
+                            while ($q->have_posts()) :
+                                $q->the_post();
+                                ?>
+                                <div class="swiper-slide mu-slide"><?php movie_ui_render_movie_card(get_the_ID()); ?></div>
+                                <?php
+                            endwhile;
+                            wp_reset_postdata();
+                            ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    <?php else : ?>
+        <?php wp_reset_postdata(); ?>
+        <?php
+    endif;
+}
+
+/**
+ * Continue watching row — hydrated client-side from localStorage + optional server progress.
+ */
+function mu_front_continue_row(string $label, string $html_id = '_mu_continue') : void {
+    ?>
+        <section class="mu-row" id="<?php echo esc_attr($html_id); ?>">
+        <div class="mu-row-inner">
+                <div class="mu-row__head">
+                    <h2 class="mu-row__title"><?php echo esc_html($label); ?></h2>
+                    <div class="mu-row__nav">
+                        <button class="mu-navbtn mu-navbtn--prev" type="button" aria-label="<?php esc_attr_e('Previous', 'astra-child'); ?>" data-mu-row-prev="<?php echo esc_attr($html_id); ?>"></button>
+                        <button class="mu-navbtn mu-navbtn--next" type="button" aria-label="<?php esc_attr_e('Next', 'astra-child'); ?>" data-mu-row-next="<?php echo esc_attr($html_id); ?>"></button>
+                    </div>
+                </div>
+                <div class="mu-swiper-wrap" data-mu-swiper-wrap="<?php echo esc_attr($html_id); ?>">
+                    <div class="swiper mu-swiper" data-mu-swiper="row" data-mu-continue-swiper>
+                        <div class="swiper-wrapper" data-mu-continue-mount></div>
+                    </div>
+                </div>
+                <p class="mu-continue-msg mu-muted" hidden><?php esc_html_e('Start watching — progress is remembered on this device.', 'astra-child'); ?></p>
+            </div>
+        </section>
+    <?php
+}
+
+/**
+ * Home “Top 10” numbered rail.
+ */
+function mu_front_render_top10(string $label, WP_Query $q, string $suffix) : void {
+    if (!$q->have_posts()) {
+        return;
+    }
+    $i = 0;
+    ?>
+    <section class="mu-row mu-top10-row" id="<?php echo esc_attr($suffix); ?>">
+        <div class="mu-row-inner">
+            <div class="mu-row__head">
+                <h2 class="mu-row__title"><?php echo esc_html($label); ?></h2>
+                <div class="mu-row__nav">
+                    <button class="mu-navbtn mu-navbtn--prev" type="button" aria-label="<?php esc_attr_e('Previous', 'astra-child'); ?>" data-mu-row-prev="<?php echo esc_attr($suffix); ?>"></button>
+                    <button class="mu-navbtn mu-navbtn--next" type="button" aria-label="<?php esc_attr_e('Next', 'astra-child'); ?>" data-mu-row-next="<?php echo esc_attr($suffix); ?>"></button>
+                </div>
+            </div>
+            <div class="mu-swiper-wrap" data-mu-swiper-wrap="<?php echo esc_attr($suffix); ?>">
+                <div class="swiper mu-swiper" data-mu-swiper="row">
+                    <div class="swiper-wrapper">
+                        <?php
+                        while ($q->have_posts()) :
+                            $q->the_post();
+                            ++$i;
+                            ?>
+                            <div class="swiper-slide mu-slide mu-top10-slide">
+                                <span class="mu-top10-num" aria-hidden="true"><?php echo (string) max(1, min(99, $i)); ?></span>
+                                <?php movie_ui_render_movie_card(get_the_ID()); ?>
+                            </div>
+                            <?php
+                        endwhile;
+                        wp_reset_postdata();
+                        ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <?php
+}
+
+/**
  * WP_Query helpers for rows
  */
 function movie_ui_query(array $args = []) : WP_Query {
@@ -288,6 +500,9 @@ function movie_ui_query(array $args = []) : WP_Query {
         'ignore_sticky_posts' => true,
         'no_found_rows' => true,
     ];
+    if (!isset($args['post_type'])) {
+        $args['post_type'] = ['movie', 'tv_show'];
+    }
     return new WP_Query(array_merge($base, $args));
 }
 
@@ -301,8 +516,37 @@ function movie_ui_ajax_search() : void {
         wp_send_json_error(['message' => 'bad_nonce'], 403);
     }
     $q = isset($_POST['q']) ? sanitize_text_field((string) $_POST['q']) : '';
+    // Short query: return trending-ish grid so Search page always has discovery UI.
     if (mb_strlen($q) < 2) {
-        wp_send_json_success(['html' => '', 'suggestions' => []]);
+        $disc = movie_ui_query([
+            'post_type' => ['movie', 'tv_show'],
+            'posts_per_page' => 12,
+            'meta_key' => '_view_count',
+            'orderby' => 'meta_value_num',
+            'order' => 'DESC',
+        ]);
+        ob_start();
+        if ($disc->have_posts()) {
+            echo '<div class="mu-grid">';
+            while ($disc->have_posts()) {
+                $disc->the_post();
+                movie_ui_render_movie_card(get_the_ID());
+            }
+            wp_reset_postdata();
+            echo '</div>';
+        } else {
+            echo '<p class="mu-muted">' . esc_html__('Import or publish titles to populate suggestions.', 'astra-child') . '</p>';
+        }
+        $fallback = ob_get_clean();
+        $sugg = [];
+        $sq = movie_ui_query(['post_type' => ['movie', 'tv_show'], 'posts_per_page' => 8, 'orderby' => 'date', 'order' => 'DESC']);
+        foreach ($sq->posts as $p) {
+            $sugg[] = ['id' => (int) $p->ID, 'title' => get_the_title($p), 'url' => get_permalink($p)];
+        }
+        wp_reset_postdata();
+
+        wp_send_json_success(['html' => $fallback, 'suggestions' => $sugg]);
+        return;
     }
 
     $query = movie_ui_query([
@@ -329,10 +573,58 @@ function movie_ui_ajax_search() : void {
     $suggestions = [];
     foreach ($query->posts as $p) {
         $suggestions[] = ['id' => (int) $p->ID, 'title' => get_the_title($p->ID), 'url' => get_permalink($p->ID)];
-        if (count($suggestions) >= 6) break;
+        if (count($suggestions) >= 6) {
+            break;
+        }
     }
 
     wp_send_json_success(['html' => $html, 'suggestions' => $suggestions]);
+}
+
+/**
+ * AJAX: Render movie cards HTML for Continue Watching / My List hydration.
+ */
+add_action('wp_ajax_movie_ui_cards_by_ids', 'movie_ui_ajax_cards_by_ids');
+add_action('wp_ajax_nopriv_movie_ui_cards_by_ids', 'movie_ui_ajax_cards_by_ids');
+
+function movie_ui_ajax_cards_by_ids() : void {
+    if (!check_ajax_referer('movie_ui_nonce', 'nonce', false)) {
+        wp_send_json_error(['message' => 'bad_nonce'], 403);
+    }
+    $raw = isset($_POST['ids']) ? wp_unslash($_POST['ids']) : '';
+    if (!is_array($raw)) {
+        $raw = [];
+    }
+    $ids = array_values(array_unique(array_filter(array_map('intval', $raw))));
+    if (!$ids) {
+        wp_send_json_success(['html' => '']);
+    }
+
+    $layout = isset($_POST['layout']) ? sanitize_key((string) $_POST['layout']) : 'swiper';
+
+    $q = movie_ui_query([
+        'post__in' => $ids,
+        'orderby' => 'post__in',
+        'posts_per_page' => count($ids),
+    ]);
+    ob_start();
+    if ($q->have_posts()) {
+        if ($layout === 'grid') {
+            while ($q->have_posts()) {
+                $q->the_post();
+                movie_ui_render_movie_card(get_the_ID());
+            }
+        } else {
+            while ($q->have_posts()) {
+                $q->the_post();
+                echo '<div class="swiper-slide mu-slide">';
+                movie_ui_render_movie_card(get_the_ID());
+                echo '</div>';
+            }
+        }
+        wp_reset_postdata();
+    }
+    wp_send_json_success(['html' => ob_get_clean()]);
 }
 
 /**
@@ -567,6 +859,100 @@ function movie_ui_get_continue_watching_ids(int $limit = 18) : array {
 }
 
 /**
+ * ============================================================
+ * Watch History AJAX handlers
+ * ============================================================
+ */
+// Get user history
+add_action('wp_ajax_mu_get_history', 'mu_ajax_get_history');
+function mu_ajax_get_history() : void {
+    if (!check_ajax_referer('mu_history_nonce', 'nonce', false)) {
+        wp_send_json_error(['message' => 'bad_nonce'], 403);
+    }
+
+    if (!is_user_logged_in()) {
+        wp_send_json_error(['message' => 'not_logged_in'], 401);
+    }
+
+    global $wpdb;
+    $table = $wpdb->prefix . 'movie_progress';
+    $user_id = get_current_user_id();
+
+    $history = $wpdb->get_results($wpdb->prepare(
+        "SELECT post_id, current_time, duration, progress_percent, updated_at
+         FROM {$table}
+         WHERE user_id = %d
+         ORDER BY updated_at DESC
+         LIMIT 100",
+        $user_id
+    ));
+
+    $result = [];
+    foreach ($history as $row) {
+        $post_id = (int) $row->post_id;
+        if (get_post_status($post_id) !== 'publish') continue;
+
+        $result[] = [
+            'post_id' => $post_id,
+            'current_time' => (int) $row->current_time,
+            'duration' => (int) $row->duration,
+            'percent' => (int) $row->progress_percent,
+            'updated_at' => strtotime($row->updated_at) * 1000
+        ];
+    }
+
+    wp_send_json_success(['history' => $result]);
+}
+
+// Remove single item from history
+add_action('wp_ajax_mu_remove_history', 'mu_ajax_remove_history');
+function mu_ajax_remove_history() : void {
+    if (!check_ajax_referer('mu_history_nonce', 'nonce', false)) {
+        wp_send_json_error(['message' => 'bad_nonce'], 403);
+    }
+
+    if (!is_user_logged_in()) {
+        wp_send_json_error(['message' => 'not_logged_in'], 401);
+    }
+
+    $post_id = isset($_POST['post_id']) ? (int) $_POST['post_id'] : 0;
+    if (!$post_id) {
+        wp_send_json_error(['message' => 'bad_input'], 400);
+    }
+
+    global $wpdb;
+    $table = $wpdb->prefix . 'movie_progress';
+    $user_id = get_current_user_id();
+
+    $wpdb->delete($table, [
+        'user_id' => $user_id,
+        'post_id' => $post_id
+    ]);
+
+    wp_send_json_success(['ok' => true]);
+}
+
+// Clear all history
+add_action('wp_ajax_mu_clear_history', 'mu_ajax_clear_history');
+function mu_ajax_clear_history() : void {
+    if (!check_ajax_referer('mu_history_nonce', 'nonce', false)) {
+        wp_send_json_error(['message' => 'bad_nonce'], 403);
+    }
+
+    if (!is_user_logged_in()) {
+        wp_send_json_error(['message' => 'not_logged_in'], 401);
+    }
+
+    global $wpdb;
+    $table = $wpdb->prefix . 'movie_progress';
+    $user_id = get_current_user_id();
+
+    $wpdb->delete($table, ['user_id' => $user_id]);
+
+    wp_send_json_success(['ok' => true, 'message' => 'History cleared']);
+}
+
+/**
  * Episode sidebar AJAX
  * - movie_ui_get_seasons(tv_show_id) -> seasons list
  * - movie_ui_get_episodes(tv_show_id, season) -> episode cards html
@@ -603,7 +989,8 @@ function movie_ui_ajax_get_episodes() : void {
             $epn = movie_ui_meta($eid, ['episode_number'], '');
             $dur = movie_ui_meta($eid, ['duration','_duration'], '');
             $still = movie_ui_backdrop_url($eid);
-            $watch = add_query_arg('id', $eid, home_url('/watch/'));
+            $wbase = function_exists('mu_get_page_url_by_slug') ? mu_get_page_url_by_slug('watch') : home_url('/watch/');
+            $watch = add_query_arg('id', $eid, $wbase);
             $cls = 'mu-ep' . (($eid === $current_id) ? ' is-current' : '');
             ?>
             <a class="<?php echo esc_attr($cls); ?>" href="<?php echo esc_url($watch); ?>" data-ep-id="<?php echo esc_attr((string)$eid); ?>">
@@ -670,6 +1057,41 @@ function movie_ui_ajax_history_remove() : void {
         'movie_id' => $post_id,
     ]);
     wp_send_json_success(['ok' => true]);
+}
+
+/**
+ * AJAX: Remove from My List / Favorites
+ */
+add_action('wp_ajax_movie_ui_remove_favorite', 'movie_ui_ajax_remove_favorite');
+function movie_ui_ajax_remove_favorite() : void {
+    if (!check_ajax_referer('mu_mylist_ajax', 'nonce', false)) {
+        wp_send_json_error(['message' => 'Invalid nonce'], 403);
+    }
+    if (!is_user_logged_in()) {
+        wp_send_json_error(['message' => 'not_logged_in'], 401);
+    }
+    $post_id = isset($_POST['post_id']) ? (int) $_POST['post_id'] : 0;
+    if (!$post_id) wp_send_json_error(['message' => 'bad_input'], 400);
+    
+    global $wpdb;
+    $table = $wpdb->prefix . 'movie_favorites';
+    $user_id = get_current_user_id();
+    
+    // Check if exists
+    $exists = $wpdb->get_var($wpdb->prepare(
+        "SELECT id FROM $table WHERE user_id=%d AND movie_id=%d",
+        $user_id, $post_id
+    ));
+    
+    if ($exists) {
+        $wpdb->delete($table, [
+            'user_id' => $user_id,
+            'movie_id' => $post_id,
+        ]);
+        wp_send_json_success(['message' => __('Removed from My List', 'astra-child')]);
+    } else {
+        wp_send_json_success(['message' => __('Already removed', 'astra-child')]);
+    }
 }
 
 add_action('wp_ajax_movie_ui_history_clear', 'movie_ui_ajax_history_clear');
@@ -1466,50 +1888,52 @@ add_shortcode('movie_smart_search', function() {
  * ============================================================
  */
 
+/**
+ * Legacy [ms_*] shortcode assets — load only when needed (avoids duplicate Swiper/nav with movie-ui).
+ */
+function movie_ui_should_enqueue_ms_assets() : bool {
+    if (!is_singular()) {
+        return false;
+    }
+    $post = get_post();
+    if (!$post instanceof WP_Post) {
+        return false;
+    }
+    $content = (string) $post->post_content;
+    foreach (['ms_home', 'ms_search', 'ms_favorites_history', 'ms_player'] as $sc) {
+        if (has_shortcode($content, $sc)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 add_action('wp_enqueue_scripts', function () {
+    if (!movie_ui_should_enqueue_ms_assets()) {
+        return;
+    }
     $uri = get_stylesheet_directory_uri();
     $ver = wp_get_theme()->get('Version') ?: '1.0.0';
 
-    // Core UI
     wp_enqueue_style('ms-ui', $uri . '/assets/ms-ui.css', ['parent-style'], $ver);
-    wp_enqueue_script('ms-ui', $uri . '/assets/ms-ui.js', [], $ver, true);
-
-    // Swiper (CDN)
-    wp_enqueue_style('swiper', 'https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css', [], '11');
-    wp_enqueue_script('swiper', 'https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js', [], '11', true);
+    wp_enqueue_script('ms-ui', $uri . '/assets/ms-ui.js', ['swiper'], $ver, true);
 
     wp_localize_script('ms-ui', 'MS_UI', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce'   => wp_create_nonce('ms_ui_nonce'),
-        // Reuse your existing favorite AJAX handler nonce name
         'favNonce' => wp_create_nonce('fav_nonce'),
         'isLoggedIn' => is_user_logged_in(),
         'homeUrl' => home_url('/'),
     ]);
-}, 20);
+}, 25);
 
 add_filter('body_class', function (array $classes) {
-    $has_ms_ui_shortcode = false;
-    if (is_singular()) {
-        $post = get_post();
-        if ($post && isset($post->post_content)) {
-            $content = (string) $post->post_content;
-            $shortcodes = ['ms_home', 'ms_search', 'ms_favorites_history', 'ms_player'];
-            foreach ($shortcodes as $sc) {
-                if (has_shortcode($content, $sc)) {
-                    $has_ms_ui_shortcode = true;
-                    break;
-                }
-            }
-        }
-    }
-    if (is_post_type_archive('movie') || is_singular('movie')) {
-        $classes[] = 'ms-ui';
-        $classes[] = 'ms-ui--no-sidebar';
-    }
+    $has_ms_ui_shortcode = movie_ui_should_enqueue_ms_assets();
     if ($has_ms_ui_shortcode) {
         $classes[] = 'ms-ui';
         $classes[] = 'ms-ui--no-sidebar';
+        $classes[] = 'movie-ui';
+        $classes[] = 'movie-ui--no-sidebar';
     }
     return $classes;
 });
@@ -1535,7 +1959,8 @@ function ms_ui_render_movie_card(int $post_id, array $opts = []) : string {
     if ($rating) $meta_bits[] = '★ ' . esc_html($rating);
     $meta = $meta_bits ? implode(' • ', $meta_bits) : '';
 
-    $watch_href = add_query_arg('movie_id', $post_id, home_url('/watch/'));
+    $watch_base = function_exists('mu_get_page_url_by_slug') ? mu_get_page_url_by_slug('watch') : trailingslashit(home_url('watch'));
+    $watch_href = add_query_arg('movie_id', $post_id, $watch_base);
 
     return '<article class="ms-card" data-movie-id="' . esc_attr((string)$post_id) . '">' .
         '<a class="ms-card__link" href="' . esc_url($link) . '" aria-label="' . esc_attr($title) . '">' .
@@ -1663,7 +2088,7 @@ add_shortcode('ms_home', function () {
                 </a>
                 <nav class="ms-navlinks" aria-label="Primary">
                     <a href="<?php echo esc_url(home_url('/')); ?>">Home</a>
-                    <a href="<?php echo esc_url(get_post_type_archive_link('movie')); ?>">Browse</a>
+                    <a href="<?php echo esc_url(trailingslashit(home_url('movies'))); ?>">Browse</a>
                     <a href="<?php echo esc_url(home_url('/search/')); ?>">Search</a>
                     <a href="<?php echo esc_url(home_url('/favorites/')); ?>">My List</a>
                 </nav>
@@ -1857,7 +2282,8 @@ add_shortcode('ms_player', function () {
 
     // Next episode support (optional meta)
     $next_id = (int) get_post_meta($movie_id, '_next_movie_id', true);
-    $next_href = $next_id ? add_query_arg('movie_id', $next_id, home_url('/watch/')) : '';
+    $wbase = function_exists('mu_get_page_url_by_slug') ? mu_get_page_url_by_slug('watch') : trailingslashit(home_url('watch'));
+    $next_href = $next_id ? add_query_arg('id', $next_id, $wbase) : '';
 
     ob_start();
     ?>
@@ -1981,3 +2407,186 @@ add_action('save_post', function ($post_id) {
         }
     }
 });
+
+/**
+ * ============================================================
+ * TOP RATED PAGE - AJAX LOAD MORE
+ * ============================================================
+ */
+add_action('wp_ajax_mu_toprated_load_more', 'mu_toprated_ajax_load_more');
+add_action('wp_ajax_nopriv_mu_toprated_load_more', 'mu_toprated_ajax_load_more');
+function mu_toprated_ajax_load_more() : void {
+    if (!check_ajax_referer('mu_toprated_ajax', 'nonce', false)) {
+        wp_send_json_error(['message' => 'Invalid nonce'], 403);
+    }
+    
+    $page = isset($_POST['page']) ? max(1, (int) $_POST['page']) : 1;
+    $cat = isset($_POST['cat']) ? sanitize_key((string) $_POST['cat']) : 'all';
+    $range = isset($_POST['range']) ? sanitize_key((string) $_POST['range']) : 'all';
+    
+    $per_page = 24;
+    $offset = ($page - 1) * $per_page;
+    
+    // Post types
+    $post_types = ($cat === 'all') ? ['movie', 'tv_show'] : [$cat === 'movies' ? 'movie' : 'tv_show'];
+    
+    // Date range
+    $date_query = [];
+    $now = new DateTimeImmutable('now', wp_timezone());
+    if ($range === 'year') {
+        $date_query = [['after' => $now->modify('-1 year')->format('Y-m-d') . ' 00:00:00']];
+    } elseif ($range === 'month') {
+        $date_query = [['after' => $now->modify('-1 month')->format('Y-m-d') . ' 00:00:00']];
+    } elseif ($range === 'week') {
+        $date_query = [['after' => $now->modify('-1 week')->format('Y-m-d') . ' 00:00:00']];
+    }
+    
+    // Count total
+    $count_args = [
+        'post_type'      => $post_types,
+        'post_status'    => 'publish',
+        'posts_per_page' => -1,
+        'date_query'     => $date_query,
+        'fields'         => 'ids',
+        'ignore_sticky_posts' => true,
+    ];
+    $total_count = count(get_posts($count_args));
+    $total_pages = ceil($total_count / $per_page);
+    
+    // Main query
+    $args = [
+        'post_type'           => $post_types,
+        'posts_per_page'       => $per_page,
+        'offset'               => $offset,
+        'post_status'          => 'publish',
+        'meta_query'           => [
+            'relation' => 'OR',
+            ['key' => '_rating', 'compare' => 'EXISTS'],
+            ['key' => '_tmdb_rating', 'compare' => 'EXISTS'],
+            ['key' => '_imdb_rating', 'compare' => 'EXISTS'],
+        ],
+        'orderby' => [
+            '_rating'      => 'DESC',
+            '_tmdb_rating' => 'DESC',
+            '_imdb_rating' => 'DESC',
+            'modified'    => 'DESC',
+        ],
+        'order'              => 'DESC',
+        'date_query'         => $date_query,
+        'ignore_sticky_posts' => true,
+    ];
+    
+    $q = new WP_Query($args);
+    
+    if (!$q->have_posts()) {
+        wp_send_json_success([
+            'success'    => true,
+            'html'       => '',
+            'has_more'   => false,
+            'total_count' => $total_count,
+            'total_shown' => $offset,
+        ]);
+    }
+    
+    ob_start();
+    
+    $rank = $offset + 1;
+    $watch_base = function_exists('mu_get_page_url_by_slug') ? mu_get_page_url_by_slug('watch') : trailingslashit(home_url('watch'));
+    
+    while ($q->have_posts()) : $q->the_post();
+        $pid = get_the_ID();
+        $title = get_the_title();
+        $ptype = get_post_type();
+        $year = movie_ui_meta($pid, ['year', '_release_year'], '');
+        if ($year && strlen($year) > 4) $year = substr($year, 0, 4);
+        $rating = movie_ui_meta($pid, ['rating', '_rating'], '');
+        $quality = movie_ui_meta($pid, ['quality', '_quality'], '');
+        $poster = get_the_post_thumbnail_url($pid, 'medium') ?: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 270"%3E%3Crect fill="%231a1a2e" width="180" height="270"/%3E%3C/svg%3E';
+        $detail_url = get_permalink($pid);
+        $trailer = movie_ui_meta($pid, ['trailer_url', '_trailer_url'], '');
+        $video = movie_ui_meta($pid, ['video_url', '_video_url'], '');
+        $watch_url = add_query_arg('id', $pid, $watch_base);
+        $play_action = $trailer ? 'trailer:' . esc_attr($trailer) : ($video ? 'watch:' . esc_url($watch_url) : '');
+        $type_label = $ptype === 'tv_show' ? __('TV', 'astra-child') : __('Movie', 'astra-child');
+        
+        $has_more = $page < $total_pages;
+        $next_rank = $rank + $per_page;
+        ?>
+        <article class="toprated-card"
+                 data-id="<?php echo esc_attr($pid); ?>"
+                 data-url="<?php echo esc_url($detail_url); ?>"
+                 data-rank="<?php echo esc_attr($rank); ?>"
+                 data-trailer="<?php echo $trailer ? esc_attr($trailer) : ''; ?>"
+                 data-video="<?php echo $video ? esc_url($watch_url) : ''; ?>"
+                 data-play-action="<?php echo esc_attr($play_action); ?>">
+            <div class="toprated-card__poster-wrap">
+                <span class="toprated-card__rank"><?php echo esc_html($rank); ?></span>
+                <img class="toprated-card__poster" 
+                     src="<?php echo esc_url($poster); ?>" 
+                     alt="<?php echo esc_attr($title); ?>" 
+                     loading="lazy"
+                     decoding="async">
+                <div class="toprated-card__overlay">
+                    <div class="toprated-card__actions">
+                        <?php if ($play_action) : ?>
+                            <button class="toprated-card__btn toprated-card__btn--play" 
+                                    data-action="<?php echo esc_attr($play_action); ?>" 
+                                    title="<?php esc_attr_e('Play', 'astra-child'); ?>">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M8 5v14l11-7z"/>
+                                </svg>
+                            </button>
+                        <?php endif; ?>
+                        <button class="toprated-card__btn toprated-card__btn--fav" 
+                                data-favorite="<?php echo esc_attr($pid); ?>" 
+                                title="<?php esc_attr_e('Add to My List', 'astra-child'); ?>">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"/>
+                                <line class="tr-ico-fav-h tr-ico-plus-h" x1="5" y1="12" x2="19" y2="12"/>
+                            </svg>
+                        </button>
+                        <button class="toprated-card__btn" 
+                                data-more 
+                                data-url="<?php echo esc_url($detail_url); ?>"
+                                title="<?php esc_attr_e('More Info', 'astra-child'); ?>">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="8" x2="12" y2="16"/>
+                                <circle cx="12" cy="5" r="1" fill="currentColor"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="toprated-card__info">
+                <h3 class="toprated-card__title"><?php echo esc_html($title); ?></h3>
+                <div class="toprated-card__meta">
+                    <?php if ($year) : ?>
+                        <span><?php echo esc_html($year); ?></span>
+                    <?php endif; ?>
+                    <?php if ($rating) : ?>
+                        <span class="toprated-card__rating">★ <?php echo esc_html($rating); ?></span>
+                    <?php endif; ?>
+                    <span class="toprated-card__type"><?php echo esc_html($type_label); ?></span>
+                    <?php if ($quality && $quality !== 'HD') : ?>
+                        <span class="toprated-card__quality"><?php echo esc_html($quality); ?></span>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </article>
+        <?php 
+        $rank++;
+    endwhile;
+    wp_reset_postdata();
+    
+    $html = ob_get_clean();
+    
+    wp_send_json_success([
+        'success'     => true,
+        'html'         => $html,
+        'has_more'     => $has_more,
+        'next_page'    => $page + 1,
+        'total_count'  => $total_count,
+        'total_shown'  => min($next_rank, $total_count),
+    ]);
+}
