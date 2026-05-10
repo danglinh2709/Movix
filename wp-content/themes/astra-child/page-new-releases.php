@@ -884,6 +884,53 @@ if ($featured_q->have_posts()) {
     .nr-card { width: 140px; }
     .nr-notif { max-width: calc(100% - 40px); }
 }
+
+/* FIX icon/button bị phóng to */
+.nr-featured__arrow,
+.nr-card__btn,
+.nr-featured__dot,
+.nr-notif__close,
+.nr-modal__close,
+.mu-trailer-modal__close {
+  min-width: unset !important;
+  min-height: unset !important;
+  max-width: none !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+  aspect-ratio: 1 / 1 !important;
+}
+
+.nr-featured__arrow {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 50% !important;
+}
+
+.nr-card__btn {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+}
+
+.nr-featured__dot {
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 50% !important;
+  font-size: 0 !important;
+}
+
+.nr-featured__arrow svg,
+.nr-card__btn svg,
+.nr-featured__btn svg,
+.nr-notif__close svg,
+.nr-modal__close svg,
+.mu-trailer-modal__close svg {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
+  display: block !important;
+}
 </style>
 
 <div class="nr-page">
@@ -1038,7 +1085,7 @@ if ($featured_q->have_posts()) {
                     $video = movie_ui_meta($pid, ['video_url', '_video_url'], '');
                     $watch_url = add_query_arg('id', $pid, $watch_base);
                     $detail_url = get_permalink($pid);
-                    $play_action = $trailer ? 'trailer:' . esc_attr($trailer) : ($video ? 'watch:' . esc_url($watch_url) : '');
+                    $play_action = 'watch:' . esc_url($watch_url);
                 ?>
                     <article class="nr-card" data-id="<?php echo esc_attr($pid); ?>" data-url="<?php echo esc_url($detail_url); ?>">
                         <div class="nr-card__poster-wrap">
@@ -1101,7 +1148,7 @@ if ($featured_q->have_posts()) {
                     $video = movie_ui_meta($pid, ['video_url', '_video_url'], '');
                     $watch_url = add_query_arg('id', $pid, $watch_base);
                     $detail_url = get_permalink($pid);
-                    $play_action = $trailer ? 'trailer:' . esc_attr($trailer) : ($video ? 'watch:' . esc_url($watch_url) : '');
+                    $play_action = 'watch:' . esc_url($watch_url);
                     
                     // Get season count
                     $eps = get_posts([
@@ -1175,7 +1222,7 @@ if ($featured_q->have_posts()) {
                     $watch_url = add_query_arg('id', $pid, $watch_base);
                     $detail_url = get_permalink($pid);
                     $ptype = get_post_type($pid);
-                    $play_action = $trailer ? 'trailer:' . esc_attr($trailer) : ($video ? 'watch:' . esc_url($watch_url) : '');
+                    $play_action = 'watch:' . esc_url($watch_url);
                 ?>
                     <article class="nr-card" data-id="<?php echo esc_attr($pid); ?>" data-url="<?php echo esc_url($detail_url); ?>">
                         <div class="nr-card__poster-wrap">

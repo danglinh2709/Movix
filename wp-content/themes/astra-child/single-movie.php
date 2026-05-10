@@ -102,15 +102,8 @@ while (have_posts()) :
     
     // URLs
     $watch_base = function_exists('mu_get_page_url_by_slug') ? mu_get_page_url_by_slug('watch') : trailingslashit(home_url('watch'));
-    $watch_url = $video_url ? add_query_arg('id', $id, $watch_base) : '';
-    
-    // Play action
-    $play_action = '';
-    if ($video_url) {
-        $play_action = 'watch:' . esc_url($watch_url);
-    } elseif ($trailer) {
-        $play_action = 'trailer:' . esc_attr($trailer);
-    }
+    // Play ALWAYS goes to Watch page, never trailer
+    $watch_url = add_query_arg('id', $id, $watch_base);
     
     // Format numbers
     $budget_fmt = $budget ? '$' . number_format((int) $budget) : '';
@@ -782,6 +775,53 @@ while (have_posts()) :
         gap: 20px;
     }
 }
+
+/* FIX tabs hover/active đẹp hơn */
+.mdetail-tab {
+  border-radius: 999px !important;
+  margin: 10px 4px !important;
+  padding: 11px 22px !important;
+  background: transparent !important;
+  color: rgba(255,255,255,.55) !important;
+  border: 1px solid transparent !important;
+}
+
+.mdetail-tab:hover {
+  background: rgba(255,255,255,.08) !important;
+  color: #fff !important;
+  border-color: rgba(255,255,255,.12) !important;
+}
+
+.mdetail-tab.is-active {
+  background: #e50914 !important;
+  color: #fff !important;
+  border-color: #e50914 !important;
+}
+
+.mdetail-tab.is-active::after {
+  display: none !important;
+}
+
+/* FIX poster play button */
+.mdetail-hero__play-btn {
+  width: 92px !important;
+  height: 92px !important;
+  border-radius: 50% !important;
+  background: rgba(255,255,255,.96) !important;
+  box-shadow: 0 18px 45px rgba(0,0,0,.45) !important;
+}
+
+.mdetail-hero__play-btn svg {
+  width: 42px !important;
+  height: 42px !important;
+  margin-left: 5px !important;
+  fill: #e50914 !important;
+}
+
+.mdetail-hero__play-btn:hover {
+  transform: scale(1.08) !important;
+  background: #fff !important;
+}
 </style>
 
 <div class="mdetail-page">
@@ -848,25 +888,13 @@ while (have_posts()) :
                 <?php endif; ?>
                 
                 <div class="mdetail-actions">
-                    <?php if ($video_url) : ?>
-                        <a href="<?php echo esc_url($watch_url); ?>" class="mdetail-btn mdetail-btn--primary">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M8 5v14l11-7z"/>
-                            </svg>
-                            <?php esc_html_e('Play Now', 'astra-child'); ?>
-                        </a>
-                    <?php elseif ($trailer) : ?>
-                        <button class="mdetail-btn mdetail-btn--primary" type="button" onclick="openTrailerModal('<?php echo esc_attr($trailer); ?>')">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M8 5v14l11-7z"/>
-                            </svg>
-                            <?php esc_html_e('Play Trailer', 'astra-child'); ?>
-                        </button>
-                    <?php else : ?>
-                        <span class="mdetail-btn mdetail-btn--secondary" style="opacity:0.5;cursor:not-allowed;">
-                            <?php esc_html_e('No video available', 'astra-child'); ?>
-                        </span>
-                    <?php endif; ?>
+                    <?php // Play button - ALWAYS goes to Watch page (never trailer) ?>
+                    <a href="<?php echo esc_url($watch_url); ?>" class="mdetail-btn mdetail-btn--primary">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M8 5v14l11-7z"/>
+                        </svg>
+                        <?php esc_html_e('Play Now', 'astra-child'); ?>
+                    </a>
                     
                     <button class="mdetail-btn mdetail-btn--fav" type="button" id="favBtn" data-id="<?php echo esc_attr($id); ?>">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

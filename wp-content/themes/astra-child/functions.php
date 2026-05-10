@@ -299,6 +299,16 @@ add_action('wp_enqueue_scripts', function () {
     wp_enqueue_style('ms-history', $uri . '/assets/css/ms-history.css', ['movie-ui'], $history_ver);
     wp_enqueue_script('ms-history', $uri . '/assets/js/ms-history.js', ['movie-ui'], $history_ver, true);
 
+    // Premium OTT VIP/Pricing page assets
+    $pricing_ver = filemtime($dir . '/assets/css/ms-pricing.css') ?: $ver;
+    wp_enqueue_style('ms-pricing', $uri . '/assets/css/ms-pricing.css', ['movie-ui'], $pricing_ver);
+    wp_enqueue_script('ms-pricing', $uri . '/assets/js/ms-pricing.js', ['movie-ui'], $pricing_ver, true);
+
+    // Premium OTT Search page assets
+    $search_ver = filemtime($dir . '/assets/css/ms-search.css') ?: $ver;
+    wp_enqueue_style('ms-search', $uri . '/assets/css/ms-search.css', ['movie-ui'], $search_ver);
+    wp_enqueue_script('ms-search', $uri . '/assets/js/ms-search.js', ['movie-ui'], $search_ver, true);
+
     wp_localize_script('movie-ui', 'MOVIE_UI', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('movie_ui_nonce'),
@@ -2506,7 +2516,7 @@ function mu_toprated_ajax_load_more() : void {
         $trailer = movie_ui_meta($pid, ['trailer_url', '_trailer_url'], '');
         $video = movie_ui_meta($pid, ['video_url', '_video_url'], '');
         $watch_url = add_query_arg('id', $pid, $watch_base);
-        $play_action = $trailer ? 'trailer:' . esc_attr($trailer) : ($video ? 'watch:' . esc_url($watch_url) : '');
+        $play_action = 'watch:' . esc_url($watch_url);
         $type_label = $ptype === 'tv_show' ? __('TV', 'astra-child') : __('Movie', 'astra-child');
         
         $has_more = $page < $total_pages;
@@ -2589,4 +2599,314 @@ function mu_toprated_ajax_load_more() : void {
         'total_count'  => $total_count,
         'total_shown'  => min($next_rank, $total_count),
     ]);
+}
+
+/**
+ * ============================================================
+ * Advanced Search Page AJAX Handlers
+ * ============================================================
+ */
+// Full search page results
+add_action('wp_ajax_mu_search_page', 'mu_ajax_search_page');
+add_action('wp_ajax_nopriv_mu_search_page', 'mu_ajax_search_page');
+function mu_ajax_search_page() : void {
+    if (!check_ajax_referer('movie_ui_nonce', 'nonce', false)) {
+        wp_send_json_error(['message' => 'bad_nonce'], 403);
+    }
+
+    $q = isset($_POST['q']) ? sanitize_text_field((string) $_POST['q']) : '';
+    $type = isset($_POST['type']) ? sanitize_text_field((string) $_POST['type']) : 'all';
+    $page = isset($_POST['page']) ? max(1, (int) $_POST['page']) : 1;
+    $per_page = isset($_POST['per_page']) ? min(50, max(1, (int) $_POST['per_page'])) : 20;
+    $sort = isset($_POST['sort']) ? sanitize_text_field((string) $_POST['sort']) : 'relevance';
+    $year_from = isset($_POST['year_from']) ? (int) $_POST['year_from'] : 0;
+    $year_to = isset($_POST['year_to']) ? (int) $_POST['year_to'] : 0;
+
+    $offset = ($page - 1) * $per_page;
+
+    // Build query args
+    $args = [
+        'post_type' => [],
+        'posts_per_page' => $per_page,
+        'offset' => $offset,
+        'post_status' => 'publish',
+    ];
+
+    // Post types based on filter
+    if ($type === 'all') {
+        $args['post_type'] = ['movie', 'tv_show'];
+    } elseif ($type === 'movies') {
+        $args['post_type'] = ['movie'];
+    } elseif ($type === 'tv') {
+        $args['post_type'] = ['tv_show'];
+    }
+
+    // Search query
+    if (!empty($q) && mb_strlen($q) >= 2) {
+        $args['s'] = $q;
+    }
+
+    // Sorting
+    switch ($sort) {
+        case 'rating':
+            $args['meta_key'] = '_tmdb_rating';
+            $args['orderby'] = ['meta_value_num' => 'DESC', 'date' => 'DESC'];
+            break;
+        case 'date':
+            $args['orderby'] = ['date' => 'DESC'];
+            break;
+        case 'popularity':
+            $args['meta_key'] = '_view_count';
+            $args['orderby'] = ['meta_value_num' => 'DESC'];
+            break;
+        case 'title':
+            $args['orderby'] = ['title' => 'ASC'];
+            break;
+        default:
+            $args['orderby'] = ['relevance' => 'DESC', 'date' => 'DESC'];
+    }
+
+    // Year filter
+    if ($year_from || $year_to) {
+        $args['meta_query'] = [];
+        if ($year_from) {
+            $args['meta_query'][] = [
+                'key' => '_release_year',
+                'value' => $year_from,
+                'compare' => '>=',
+                'type' => 'NUMERIC'
+            ];
+        }
+        if ($year_to) {
+            $args['meta_query'][] = [
+                'key' => '_release_year',
+                'value' => $year_to,
+                'compare' => '<=',
+                'type' => 'NUMERIC'
+            ];
+        }
+    }
+
+    // Get results
+    $query = new WP_Query($args);
+
+    $movies = [];
+    $tv = [];
+    $people = [];
+
+    // Get favorites for highlighting
+    $favs = [];
+    if (is_user_logged_in()) {
+        $user_favs = get_user_meta(get_current_user_id(), 'mu_favorites', true);
+        if ($user_favs) {
+            $favs = is_array($user_favs) ? $user_favs : [];
+        }
+    } else {
+        $favs = isset($_COOKIE['mu_favorites']) ? explode(',', sanitize_text_field($_COOKIE['mu_favorites'])) : [];
+    }
+
+    // Get progress for highlighting
+    $progress = [];
+    if (is_user_logged_in()) {
+        global $wpdb;
+        $prog_table = $wpdb->prefix . 'movie_progress';
+        $progress_rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT post_id, progress_percent FROM {$prog_table} WHERE user_id = %d",
+            get_current_user_id()
+        ));
+        foreach ($progress_rows as $row) {
+            $progress[$row->post_id] = $row->progress_percent;
+        }
+    }
+
+    while ($query->have_posts()) {
+        $query->the_post();
+        $pid = get_the_ID();
+        $ptype = get_post_type($pid);
+
+        $thumb = get_the_post_thumbnail_url($pid, 'medium') ?: '';
+        $backdrop = get_the_post_thumbnail_url($pid, 'large') ?: '';
+        $title = get_the_title($pid);
+        $year = get_post_meta($pid, '_release_year', true) ?: '';
+        $runtime = get_post_meta($pid, '_duration', true) ?: '';
+        $rating = get_post_meta($pid, '_tmdb_rating', true) ?: '';
+
+        // Format runtime
+        $runtime_formatted = '';
+        if ($runtime) {
+            $h = (int) ($runtime / 60);
+            $m = $runtime % 60;
+            $runtime_formatted = $h > 0 ? "{$h}h {$m}m" : "{$m}m";
+        }
+
+        $item = [
+            'id' => $pid,
+            'title' => $title,
+            'thumb' => $thumb ?: $backdrop,
+            'year' => $year,
+            'runtime' => $runtime_formatted,
+            'rating' => $rating ? number_format((float) $rating, 1) : '',
+            'type' => $ptype,
+            'is_fav' => in_array((string) $pid, $favs),
+            'progress' => $progress[$pid] ?? 0,
+            'url' => get_permalink($pid)
+        ];
+
+        if ($ptype === 'movie') {
+            $movies[] = $item;
+        } elseif ($ptype === 'tv_show') {
+            $tv[] = $item;
+        }
+    }
+    wp_reset_postdata();
+
+    // People search (search actor taxonomy)
+    if (!empty($q) && mb_strlen($q) >= 2) {
+        $people_query = new WP_Query([
+            'post_type' => ['movie', 'tv_show'],
+            'posts_per_page' => 20,
+            'tax_query' => [
+                'relation' => 'OR',
+                [
+                    'taxonomy' => 'actor',
+                    'field' => 'name',
+                    'terms' => $q,
+                    'compare' => 'LIKE'
+                ],
+                [
+                    'taxonomy' => 'director',
+                    'field' => 'name',
+                    'terms' => $q,
+                    'compare' => 'LIKE'
+                ]
+            ]
+        ]);
+
+        $seen_people = [];
+        while ($people_query->have_posts()) {
+            $people_query->the_post();
+            $pid = get_the_ID();
+
+            // Get actors
+            $actors = get_the_terms($pid, 'actor');
+            if ($actors && !is_wp_error($actors)) {
+                foreach ($actors as $actor) {
+                    if (stripos($actor->name, $q) !== false && !isset($seen_people[$actor->term_id])) {
+                        $actor_thumb = get_term_meta($actor->term_id, 'actor_thumb', true);
+                        $people[] = [
+                            'id' => $actor->term_id,
+                            'name' => $actor->name,
+                            'thumb' => $actor_thumb ?: '',
+                            'role' => 'Actor'
+                        ];
+                        $seen_people[$actor->term_id] = true;
+                    }
+                }
+            }
+
+            // Get directors
+            $directors = get_the_terms($pid, 'director');
+            if ($directors && !is_wp_error($directors)) {
+                foreach ($directors as $director) {
+                    if (stripos($director->name, $q) !== false && !isset($seen_people[$director->term_id])) {
+                        $director_thumb = get_term_meta($director->term_id, 'director_thumb', true);
+                        $people[] = [
+                            'id' => $director->term_id,
+                            'name' => $director->name,
+                            'thumb' => $director_thumb ?: '',
+                            'role' => 'Director'
+                        ];
+                        $seen_people[$director->term_id] = true;
+                    }
+                }
+            }
+        }
+        wp_reset_postdata();
+
+        // Limit people results
+        $people = array_slice($people, 0, 10);
+    }
+
+    $total = $query->found_posts;
+
+    wp_send_json_success([
+        'success' => true,
+        'movies' => $movies,
+        'tv' => $tv,
+        'people' => $people,
+        'total' => $total,
+        'page' => $page,
+        'per_page' => $per_page
+    ]);
+}
+
+// Search suggestions (for live autocomplete)
+add_action('wp_ajax_mu_search_suggestions', 'mu_ajax_search_suggestions');
+add_action('wp_ajax_nopriv_mu_search_suggestions', 'mu_ajax_search_suggestions');
+function mu_ajax_search_suggestions() : void {
+    if (!check_ajax_referer('movie_ui_nonce', 'nonce', false)) {
+        wp_send_json_error(['message' => 'bad_nonce'], 403);
+    }
+
+    $q = isset($_POST['q']) ? sanitize_text_field((string) $_POST['q']) : '';
+    $limit = isset($_POST['limit']) ? min(10, max(1, (int) $_POST['limit'])) : 8;
+
+    if (mb_strlen($q) < 2) {
+        wp_send_json_success([]);
+        return;
+    }
+
+    $results = [];
+
+    // Search movies and TV shows
+    $query = new WP_Query([
+        'post_type' => ['movie', 'tv_show'],
+        'posts_per_page' => $limit,
+        's' => $q,
+        'post_status' => 'publish',
+        'orderby' => 'relevance'
+    ]);
+
+    while ($query->have_posts()) {
+        $query->the_post();
+        $pid = get_the_ID();
+        $ptype = get_post_type($pid);
+        $thumb = get_the_post_thumbnail_url($pid, 'thumbnail') ?: get_the_post_thumbnail_url($pid, 'medium') ?: '';
+        $year = get_post_meta($pid, '_release_year', true) ?: '';
+
+        $results[] = [
+            'id' => $pid,
+            'title' => get_the_title($pid),
+            'type' => $ptype === 'tv_show' ? 'TV Show' : 'Movie',
+            'year' => $year,
+            'thumb' => $thumb,
+            'url' => get_permalink($pid)
+        ];
+    }
+    wp_reset_postdata();
+
+    // Search actors if not enough results
+    if (count($results) < $limit) {
+        $actors = get_terms([
+            'taxonomy' => 'actor',
+            'name__like' => $q,
+            'number' => 4,
+            'hide_empty' => false
+        ]);
+
+        foreach ($actors as $actor) {
+            if (count($results) >= $limit) break;
+            $actor_thumb = get_term_meta($actor->term_id, 'actor_thumb', true);
+            $results[] = [
+                'id' => 'actor_' . $actor->term_id,
+                'title' => $actor->name,
+                'type' => 'Person',
+                'year' => '',
+                'thumb' => $actor_thumb ?: '',
+                'url' => get_term_link($actor)
+            ];
+        }
+    }
+
+    wp_send_json_success($results);
 }

@@ -1,82 +1,73 @@
 <?php
 /**
  * Template Name: Watch Player (Premium OTT)
- * Premium cinematic video player for movies and TV shows
+ * Modern streaming platform design
  */
-get_header();
+defined('ABSPATH') || exit;
 
-// ============================================================
-// GET POST ID FROM URL
-// ============================================================
+remove_all_actions('astra_header');
+show_admin_bar(false);
+
+// Get post ID - support multiple parameter names
 $movie_id = isset($_GET['movie_id']) ? (int) $_GET['movie_id'] : 0;
 $episode_id = isset($_GET['episode_id']) ? (int) $_GET['episode_id'] : 0;
-$id = $episode_id ?: $movie_id;
+$id_param = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+$id = $episode_id ?: ($movie_id ?: $id_param);
 
 if (!$id || !get_post($id)) {
     get_template_part('template-parts/streaming/header');
-    echo '<div class="mu-watch-error"><p>' . esc_html__('No title selected.', 'astra-child') . '</p>';
-    echo '<a href="' . esc_url(home_url('/')) . '">' . esc_html__('Back to Home', 'astra-child') . '</a></div>';
+    echo '<div class="mu-watch-error">';
+    echo '<svg viewBox="0 0 24 24" width="80" height="80" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>';
+    echo '<h2>No video selected</h2>';
+    echo '<p>Please select a movie or TV show to watch.</p>';
+    echo '<a href="' . esc_url(home_url('/')) . '" class="mu-btn mu-btn--primary">Go to Home</a>';
+    echo '</div>';
     get_footer();
     exit;
 }
 
-// ============================================================
-// GET POST TYPE AND DATA
-// ============================================================
+// Get post data
 $post_type = get_post_type($id);
 $title = get_the_title($id);
 $permalink = get_permalink($id);
 $is_tv = ($post_type === 'episode');
 $is_admin = current_user_can('edit_posts');
 
-// ============================================================
-// VIDEO SOURCE DETECTION
-// ============================================================
+// Video source detection
 $video_sources = [];
 
-// Episode video_url
 if ($is_tv) {
     $ep_video_url = get_post_meta($id, 'video_url', true);
     if ($ep_video_url) $video_sources['episode_video_url'] = $ep_video_url;
 }
 
-// Movie/Episode _video_url
 $_video_url = get_post_meta($id, '_video_url', true);
 if ($_video_url) $video_sources['_video_url'] = $_video_url;
 
-// video_url
 $video_url = get_post_meta($id, 'video_url', true);
 if ($video_url) $video_sources['video_url'] = $video_url;
 
-// _video_url (alt)
 $_video_alt = get_post_meta($id, '_video_url_alt', true);
 if ($_video_alt) $video_sources['_video_url_alt'] = $_video_alt;
 
-// HLS URL
 $hls_url = get_post_meta($id, 'hls_url', true);
 if ($hls_url) $video_sources['hls_url'] = $hls_url;
 
 $_hls_url = get_post_meta($id, '_hls_url', true);
 if ($_hls_url) $video_sources['_hls_url'] = $_hls_url;
 
-// Embed URL
 $embed_url = get_post_meta($id, 'embed_url', true);
 if ($embed_url) $video_sources['embed_url'] = $embed_url;
 
 $_embed_url = get_post_meta($id, '_embed_url', true);
 if ($_embed_url) $video_sources['_embed_url'] = $_embed_url;
 
-// Trailer (fallback)
-$trailer_url = get_post_meta($id, 'trailer_url', true);
-if ($trailer_url) $video_sources['trailer_url'] = $trailer_url;
-
-// Determine primary video source
+// Determine primary video
+$priority = ['episode_video_url', '_video_url', 'video_url', '_video_url_alt', 'hls_url', '_hls_url', 'embed_url', '_embed_url'];
 $primary_video = '';
 $video_type = 'empty';
 
 if (!empty($video_sources)) {
-    // Priority: episode_video_url > _video_url > video_url > hls > embed > trailer
-    $priority = ['episode_video_url', '_video_url', 'video_url', '_video_url_alt', 'hls_url', '_hls_url', 'embed_url', '_embed_url', 'trailer_url'];
     foreach ($priority as $key) {
         if (isset($video_sources[$key])) {
             $primary_video = $video_sources[$key];
@@ -88,7 +79,6 @@ if (!empty($video_sources)) {
         $video_type = 'hls';
     } elseif (strpos($primary_video, 'youtube.com') !== false || strpos($primary_video, 'youtu.be') !== false) {
         $video_type = 'youtube';
-        // Convert to embed
         if (strpos($primary_video, 'watch?v=') !== false) {
             $primary_video = str_replace('watch?v=', 'embed/', $primary_video);
         } elseif (preg_match('#youtu\.be/([^?&#]+)#', $primary_video, $m)) {
@@ -103,19 +93,21 @@ if (!empty($video_sources)) {
     }
 }
 
-// Subtitle URL
+// Subtitle
 $subtitle_url = get_post_meta($id, 'subtitle_url', true);
 $_subtitle_url = get_post_meta($id, '_subtitle_url', true);
 $sub_vtt = $subtitle_url ?: $_subtitle_url;
 
-// ============================================================
-// BACKDROP / POSTER
-// ============================================================
+// Poster/Backdrop
+$poster_url = get_the_post_thumbnail_url($id, 'large');
+if (!$poster_url) {
+    $poster_url = 'https://picsum.photos/seed/' . $id . '/400/600';
+}
+
 $backdrop = '';
 if (function_exists('movie_ui_backdrop_url')) {
     $backdrop = movie_ui_backdrop_url($id);
 }
-
 if (!$backdrop) {
     $thumb_id = get_post_thumbnail_id($id);
     if ($thumb_id) {
@@ -124,9 +116,7 @@ if (!$backdrop) {
     }
 }
 
-// ============================================================
-// MOVIE METADATA
-// ============================================================
+// Metadata
 $rating = get_post_meta($id, '_rating', true) ?: get_post_meta($id, 'imdbRating', true) ?: '';
 $year = get_post_meta($id, '_release_year', true) ?: get_post_meta($id, 'release_date', true) ?: '';
 if ($year) $year = substr($year, 0, 4);
@@ -149,14 +139,10 @@ $description = $overview ?: $excerpt;
 
 // Genres
 $genres = [];
-if ($is_tv) {
-    $terms = get_the_terms($id, 'genre');
-} else {
-    $terms = get_the_terms($id, 'genre');
-}
+$terms = get_the_terms($id, 'genre');
 if ($terms && !is_wp_error($terms)) {
     $genres = array_map(function($t) {
-        return '<a href="' . esc_url(get_term_link($t)) . '" class="mu-watch-genre-tag">' . esc_html($t->name) . '</a>';
+        return '<a href="' . esc_url(get_term_link($t)) . '" class="mu-watch-info__genre">' . esc_html($t->name) . '</a>';
     }, $terms);
 }
 
@@ -169,11 +155,7 @@ if ($director_terms && !is_wp_error($director_terms)) {
 
 // Writers
 $writers_meta = get_post_meta($id, '_writers', true);
-if ($writers_meta) {
-    $writers = is_array($writers_meta) ? $writers_meta : explode(',', $writers_meta);
-} else {
-    $writers = [];
-}
+$writers = $writers_meta ? (is_array($writers_meta) ? $writers_meta : explode(',', $writers_meta)) : [];
 
 // Cast
 $cast = [];
@@ -182,26 +164,16 @@ if ($cast_terms && !is_wp_error($cast_terms)) {
     $cast = array_slice($cast_terms, 0, 10);
 }
 
-// Audio languages
+// Audio
 $audio_lang = get_post_meta($id, '_audio_language', true) ?: get_post_meta($id, 'audio_language', true) ?: '';
 
-// ============================================================
-// EPISODE DATA (for TV Shows)
-// ============================================================
+// Episodes
 $tv_episodes = [];
 if ($is_tv) {
     $tv_id = (int) get_post_meta($id, 'tv_show_id', true);
-    if (!$tv_id) {
-        $tv_id = wp_get_post_parent_id($id);
-    }
+    if (!$tv_id) $tv_id = wp_get_post_parent_id($id);
 
     if ($tv_id) {
-        $seasons = get_terms([
-            'taxonomy' => 'season',
-            'hide_empty' => true,
-            'meta_query' => [['key' => 'tv_show_id', 'value' => $tv_id]]
-        ]);
-
         $all_eps_query = new WP_Query([
             'post_type' => 'episode',
             'posts_per_page' => -1,
@@ -218,7 +190,6 @@ if ($is_tv) {
     }
 }
 
-// Current season/episode
 $current_season = get_post_meta($id, 'season_number', true) ?: 1;
 $current_ep_num = get_post_meta($id, 'episode_number', true) ?: 1;
 
@@ -237,23 +208,15 @@ if ($is_tv && !empty($tv_episodes)) {
     }
 }
 
-// ============================================================
-// RELATED MOVIES
-// ============================================================
+// Related
 $related_movies = [];
 if (!$is_tv && !empty($genres)) {
-    $genre_ids = array_map(function($t) { return $t->term_id; }, $terms);
+    $genre_ids = array_map(function($t) { return $t->term_id; }, $terms ?: []);
     $related_query = new WP_Query([
         'post_type' => 'movie',
         'posts_per_page' => 6,
         'post__not_in' => [$id],
-        'tax_query' => [
-            [
-                'taxonomy' => 'genre',
-                'field' => 'term_id',
-                'terms' => $genre_ids,
-            ]
-        ],
+        'tax_query' => [['taxonomy' => 'genre', 'field' => 'term_id', 'terms' => $genre_ids]],
         'no_found_rows' => true
     ]);
     if ($related_query->have_posts()) {
@@ -262,33 +225,21 @@ if (!$is_tv && !empty($genres)) {
     wp_reset_postdata();
 }
 
-// ============================================================
-// UP NEXT DATA
-// ============================================================
+// Up next
 $up_next = null;
-if ($next_href) {
+if ($next_href && isset($next_ep)) {
     $up_next = [
-        'title' => get_the_title($next_ep->ID ?? 0),
-        'thumb' => get_the_post_thumbnail_url($next_ep->ID ?? 0, 'medium'),
+        'title' => get_the_title($next_ep->ID),
+        'thumb' => get_the_post_thumbnail_url($next_ep->ID, 'medium'),
         'episode' => $current_ep_num + 1,
         'href' => $next_href
     ];
 }
 
-// ============================================================
-// ADMIN EDIT LINK
-// ============================================================
 $edit_link = $is_admin ? get_edit_post_link($id) : '';
-
-// ============================================================
-// NONCE
-// ============================================================
 $fav_nonce = wp_create_nonce('mu_fav_nonce');
 $progress_nonce = wp_create_nonce('mu_progress_nonce');
 
-// ============================================================
-// LOCALIZE DATA
-// ============================================================
 $player_settings = [
     'ajaxUrl' => admin_url('admin-ajax.php'),
     'nonce' => $progress_nonce,
@@ -304,548 +255,305 @@ $player_settings = [
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?php echo esc_html($title); ?> - <?php bloginfo('name'); ?></title>
     <?php wp_head(); ?>
+    <link rel="stylesheet" href="<?php echo esc_url(get_theme_file_uri('assets/css/movie-ui.css')); ?>">
+    <link rel="stylesheet" href="<?php echo esc_url(get_theme_file_uri('assets/css/ms-watch.css')); ?>">
+    <style>
+        html { margin-top: 0 !important; }
+        body { margin-top: 0 !important; }
+        #wpadminbar { display: none !important; }
+        * { box-sizing: border-box; }
+    </style>
 </head>
 <body class="movie-ui movie-ui--no-sidebar mu-watch-page">
 <?php wp_body_open(); ?>
 
+<!-- Header -->
+<?php get_template_part('template-parts/streaming/header'); ?>
+
 <div class="mu-watch-container">
-    <!-- ============================================================ -->
-    <!-- FULLSCREEN PLAYER SECTION -->
-    <!-- ============================================================ -->
-    <div class="mu-player-wrapper"
-         data-post-id="<?php echo esc_attr((string) $id); ?>"
-         data-post-type="<?php echo esc_attr($post_type); ?>"
-         data-next-href="<?php echo esc_url($next_href); ?>">
 
-        <div class="mu-player-container" id="mu-player-container">
-            <!-- Loading Spinner -->
-            <div class="mu-player-loading" style="display: none;">
-                <div class="mu-player-spinner"></div>
-            </div>
-
-            <!-- Video Element or Iframe -->
+    <!-- ============================================================ -->
+    <!-- PLAYER SECTION -->
+    <!-- ============================================================ -->
+    <div class="mu-player-wrapper" data-post-id="<?php echo esc_attr($id); ?>" data-post-type="<?php echo esc_attr($post_type); ?>">
+        <div class="mu-player-container">
+            
             <?php if ($video_type === 'iframe') : ?>
-                <div class="mu-player-iframe-container" style="width:100%;height:100%;">
-                    <iframe class="mu-player-iframe"
-                            src="<?php echo esc_url($primary_video); ?>"
-                            title="<?php echo esc_attr($title); ?>"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                            allowfullscreen>
-                    </iframe>
+                <div class="mu-player-iframe-container">
+                    <iframe class="mu-player-iframe" src="<?php echo esc_url($primary_video); ?>" title="<?php echo esc_attr($title); ?>" allowfullscreen></iframe>
                 </div>
             <?php elseif ($video_type !== 'empty' && $video_type !== 'youtube' && $video_type !== 'vimeo') : ?>
-                <video id="mu-player-video"
-                       class="mu-player-video"
-                       data-src="<?php echo esc_url($primary_video); ?>"
-                       poster="<?php echo esc_url($backdrop); ?>"
-                       playsinline
-                       crossorigin="anonymous">
+                <video id="mu-player-video" class="mu-player-video" data-src="<?php echo esc_url($primary_video); ?>" poster="<?php echo esc_url($backdrop); ?>" playsinline crossorigin="anonymous">
                     <?php if ($sub_vtt) : ?>
-                        <track kind="subtitles"
-                               srclang="<?php echo esc_attr(substr(get_locale(), 0, 2)); ?>"
-                               label="<?php esc_attr_e('Subtitles', 'astra-child'); ?>"
-                               src="<?php echo esc_url($sub_vtt); ?>">
+                        <track kind="subtitles" srclang="<?php echo esc_attr(substr(get_locale(), 0, 2)); ?>" label="<?php esc_attr_e('Subtitles', 'astra-child'); ?>" src="<?php echo esc_url($sub_vtt); ?>">
                     <?php endif; ?>
                 </video>
             <?php elseif ($video_type === 'youtube') : ?>
-                <iframe id="mu-player-video"
-                        class="mu-player-iframe"
-                        src="<?php echo esc_url($primary_video); ?>"
-                        title="<?php echo esc_attr($title); ?>"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowfullscreen>
-                </iframe>
+                <iframe class="mu-player-iframe" src="<?php echo esc_url($primary_video); ?>" title="<?php echo esc_attr($title); ?>" allowfullscreen></iframe>
             <?php else : ?>
-                <!-- Unavailable State -->
-                <div class="mu-player-unavailable" style="display: flex;">
-                    <div class="mu-player-unavailable-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                        </svg>
-                    </div>
-                    <h3 class="mu-player-unavailable-title"><?php esc_html_e('No Video Source Available', 'astra-child'); ?></h3>
-                    <p class="mu-player-unavailable-desc">
-                        <?php esc_html_e('This title has been imported, but no legal video source has been configured yet.', 'astra-child'); ?>
-                    </p>
+                <div class="mu-watch-error">
+                    <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    <h3><?php esc_html_e('No Video Available', 'astra-child'); ?></h3>
+                    <p><?php esc_html_e('This title has no video source configured yet.', 'astra-child'); ?></p>
                     <?php if ($is_admin && $edit_link) : ?>
-                        <a href="<?php echo esc_url($edit_link); ?>" class="mu-player-unavailable-btn">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-                                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                            </svg>
-                            <?php esc_html_e('Add Video Source', 'astra-child'); ?>
-                        </a>
+                        <a href="<?php echo esc_url($edit_link); ?>" class="mu-btn mu-btn--primary"><?php esc_html_e('Add Video Source', 'astra-child'); ?></a>
                     <?php endif; ?>
                 </div>
             <?php endif; ?>
 
-            <!-- Player Overlays -->
-            <div class="mu-player-overlay">
-                <!-- Top Overlay -->
-                <div class="mu-player-overlay--top">
-                    <div class="mu-player-header">
-                        <div class="mu-player-header-left">
-                            <a href="<?php echo esc_url($permalink); ?>" class="mu-player-back" aria-label="<?php esc_attr_e('Back', 'astra-child'); ?>">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M19 12H5M12 19l-7-7 7-7"/>
-                                </svg>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- MAIN CONTENT -->
+    <!-- ============================================================ -->
+    <main class="mu-watch-main">
+
+        <!-- POSTER (LEFT) -->
+        <aside class="mu-watch-poster">
+            <div class="mu-watch-poster__image">
+                <img src="<?php echo esc_url($poster_url); ?>" alt="<?php echo esc_attr($title); ?>" class="mu-watch-poster__img">
+                <div class="mu-watch-poster__overlay">
+                    <button class="mu-watch-poster__play-btn" aria-label="Play">
+                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="mu-watch-poster__actions">
+                <button class="mu-watch-poster__action-btn is-active" data-action="favorites">
+                    <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+                    My List
+                </button>
+                <button class="mu-watch-poster__action-btn" data-action="share">
+                    <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>
+                    Share
+                </button>
+                <button class="mu-watch-poster__action-btn" data-action="download">
+                    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    Download
+                </button>
+            </div>
+        </aside>
+
+        <!-- INFO (CENTER) -->
+        <div class="mu-watch-info">
+            
+            <h1 class="mu-watch-info__title"><?php echo esc_html($title); ?></h1>
+
+            <div class="mu-watch-info__meta">
+                <?php if ($rating) : ?>
+                    <span class="mu-watch-info__meta-item mu-watch-info__meta-item--rating">
+                        <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                        <?php echo esc_html($rating); ?>
+                    </span>
+                    <span class="mu-watch-info__meta-dot"></span>
+                <?php endif; ?>
+                <?php if ($year) : ?>
+                    <span class="mu-watch-info__meta-item"><?php echo esc_html($year); ?></span>
+                    <span class="mu-watch-info__meta-dot"></span>
+                <?php endif; ?>
+                <?php if ($runtime) : ?>
+                    <span class="mu-watch-info__meta-item"><?php echo esc_html($runtime); ?></span>
+                    <span class="mu-watch-info__meta-dot"></span>
+                <?php endif; ?>
+                <?php if ($age_rating) : ?>
+                    <span class="mu-watch-info__age"><?php echo esc_html($age_rating); ?></span>
+                <?php endif; ?>
+            </div>
+
+            <?php if (!empty($genres)) : ?>
+                <div class="mu-watch-info__genres">
+                    <?php echo implode('', $genres); ?>
+                </div>
+            <?php endif; ?>
+
+            <div class="mu-watch-info__actions">
+                <button class="mu-watch-info__btn mu-watch-info__btn--primary mu-btn-play" data-id="<?php echo esc_attr($id); ?>">
+                    <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    Play
+                </button>
+                <button class="mu-watch-info__btn mu-watch-info__btn--secondary mu-btn-fav" data-id="<?php echo esc_attr($id); ?>">
+                    <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+                    My List
+                </button>
+            </div>
+
+            <?php if ($description) : ?>
+                <p class="mu-watch-info__overview"><?php echo wp_kses_post(wp_trim_words($description, 50)); ?></p>
+            <?php endif; ?>
+
+            <div class="mu-watch-info__details">
+                <?php if (!empty($directors)) : ?>
+                    <div class="mu-watch-info__detail">
+                        <span class="mu-watch-info__detail-label">Director:</span>
+                        <span class="mu-watch-info__detail-value"><?php echo implode(', ', $directors); ?></span>
+                    </div>
+                <?php endif; ?>
+                <?php if (!empty($writers)) : ?>
+                    <div class="mu-watch-info__detail">
+                        <span class="mu-watch-info__detail-label">Writer:</span>
+                        <span class="mu-watch-info__detail-value"><?php echo esc_html(implode(', ', $writers)); ?></span>
+                    </div>
+                <?php endif; ?>
+                <?php if ($audio_lang) : ?>
+                    <div class="mu-watch-info__detail">
+                        <span class="mu-watch-info__detail-label">Audio:</span>
+                        <span class="mu-watch-info__detail-value"><?php echo esc_html($audio_lang); ?></span>
+                    </div>
+                <?php endif; ?>
+                <?php if ($sub_vtt) : ?>
+                    <div class="mu-watch-info__detail">
+                        <span class="mu-watch-info__detail-label">Subtitles:</span>
+                        <span class="mu-watch-info__detail-value">Available</span>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- Cast -->
+            <?php if (!empty($cast)) : ?>
+                <div class="mu-watch-cast">
+                    <h3 class="mu-watch-cast__title">Cast</h3>
+                    <div class="mu-watch-cast__list">
+                        <?php foreach ($cast as $actor) :
+                            $actor_img = get_term_meta($actor->term_id, 'image_url', true);
+                        ?>
+                            <a href="#" class="mu-watch-cast__item">
+                                <?php if ($actor_img) : ?>
+                                    <img src="<?php echo esc_url($actor_img); ?>" alt="<?php echo esc_attr($actor->name); ?>" class="mu-watch-cast__avatar">
+                                <?php else : ?>
+                                    <div class="mu-watch-cast__avatar-placeholder">
+                                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                                    </div>
+                                <?php endif; ?>
+                                <span class="mu-watch-cast__name"><?php echo esc_html($actor->name); ?></span>
                             </a>
-                            <div class="mu-player-info">
-                                <h1 class="mu-player-title"><?php echo esc_html($title); ?></h1>
-                                <div class="mu-player-meta">
-                                    <?php if ($rating) : ?>
-                                        <span class="mu-player-meta-item">
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="#ffd700">
-                                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                                            </svg>
-                                            <?php echo esc_html($rating); ?>
-                                        </span>
-                                        <span class="mu-player-meta-dot"></span>
-                                    <?php endif; ?>
-                                    <?php if ($year) : ?>
-                                        <span class="mu-player-meta-item"><?php echo esc_html($year); ?></span>
-                                        <span class="mu-player-meta-dot"></span>
-                                    <?php endif; ?>
-                                    <?php if ($runtime) : ?>
-                                        <span class="mu-player-meta-item"><?php echo esc_html($runtime); ?></span>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mu-player-header-right">
-                            <?php if ($quality) : ?>
-                                <span class="mu-player-badge mu-player-badge--quality"><?php echo esc_html($quality); ?></span>
-                            <?php endif; ?>
-                            <?php if ($age_rating) : ?>
-                                <span class="mu-player-badge mu-player-badge--age"><?php echo esc_html($age_rating); ?></span>
-                            <?php endif; ?>
-                            <button class="mu-player-action-btn" data-action="favorites" aria-label="<?php esc_attr_e('Add to My List', 'astra-child'); ?>">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
-                                </svg>
-                            </button>
-                            <button class="mu-player-action-btn" data-action="subtitles" aria-label="<?php esc_attr_e('Subtitles', 'astra-child'); ?>">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <rect x="2" y="4" width="20" height="16" rx="2"/>
-                                    <path d="M6 12h2M10 12h1M16 12h2"/>
-                                </svg>
-                            </button>
-                            <button class="mu-player-action-btn" data-action="cast" aria-label="<?php esc_attr_e('Cast', 'astra-child'); ?>">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M5 12.55a11 11 0 0114.08 0M8.53 16.11a6 6 0 016.95 0M12 20h.01"/>
-                                </svg>
-                            </button>
-                        </div>
+                        <?php endforeach; ?>
                     </div>
                 </div>
+            <?php endif; ?>
 
-                <!-- Center Play Button -->
-                <div class="mu-player-center">
-                    <button class="mu-player-play-btn" aria-label="<?php esc_attr_e('Play', 'astra-child'); ?>">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M8 5v14l11-7z"/>
-                        </svg>
-                    </button>
-                </div>
-
-                <!-- Rewind/Forward -->
-                <button class="mu-player-rewind" aria-label="<?php esc_attr_e('Rewind 10 seconds', 'astra-child'); ?>">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12.5 3C17.15 3 21.08 6.03 22.47 10.22L20.1 11C19.05 7.81 16.04 5.5 12.5 5.5C10.54 5.5 8.77 6.22 7.38 7.38L10 10H3V3L5.6 5.6C7.45 4 9.85 3 12.5 3M10 12V22H8V14H6V12H10M18 14V20C18 21.1 17.1 22 16 22H14C12.9 22 12 21.1 12 20V14C12 12.9 12.9 12 14 12H16C17.1 12 18 12.9 18 14M14 14V20H16V14H14Z"/>
-                    </svg>
-                    <span class="mu-player-skip-indicator">-10s</span>
-                </button>
-                <button class="mu-player-forward" aria-label="<?php esc_attr_e('Forward 10 seconds', 'astra-child'); ?>">
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M11.5 3C6.85 3 2.92 6.03 1.53 10.22L3.9 11C4.95 7.81 7.96 5.5 11.5 5.5C13.46 5.5 15.23 6.22 16.62 7.38L14 10H21V3L18.4 5.6C16.55 4 14.15 3 11.5 3M14 12V22H12V14H10V12H14M20 14V20C20 21.1 19.1 22 18 22H16C14.9 22 14 21.1 14 20V14C14 12.9 14.9 12 16 12H18C19.1 12 20 12.9 20 14M16 14V20H18V14H16Z"/>
-                    </svg>
-                    <span class="mu-player-skip-indicator">+10s</span>
-                </button>
-
-                <!-- Bottom Overlay -->
-                <div class="mu-player-overlay--bottom">
-                    <div class="mu-player-controls">
-                        <!-- Progress Bar -->
-                        <div class="mu-player-progress-wrap">
-                            <div class="mu-player-progress">
-                                <div class="mu-player-progress-buffered"></div>
-                                <div class="mu-player-progress-bar"></div>
-                                <div class="mu-player-progress-thumb"></div>
-                            </div>
-                            <div class="mu-player-progress-tooltip">0:00</div>
-                        </div>
-
-                        <!-- Controls Row -->
-                        <div class="mu-player-controls-row">
-                            <div class="mu-player-controls-left">
-                                <button class="mu-player-ctrl-btn" data-action="play-pause" aria-label="<?php esc_attr_e('Play/Pause', 'astra-child'); ?>">
-                                    <svg viewBox="0 0 24 24">
-                                        <path d="M8 5v14l11-7z"/>
-                                    </svg>
-                                </button>
-
-                                <button class="mu-player-ctrl-btn" data-action="rewind" aria-label="<?php esc_attr_e('Rewind', 'astra-child'); ?>">
-                                    <svg viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/>
-                                    </svg>
-                                </button>
-
-                                <button class="mu-player-ctrl-btn" data-action="forward" aria-label="<?php esc_attr_e('Forward', 'astra-child'); ?>">
-                                    <svg viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/>
-                                    </svg>
-                                </button>
-
-                                <div class="mu-player-volume">
-                                    <button class="mu-player-ctrl-btn" data-action="volume" aria-label="<?php esc_attr_e('Volume', 'astra-child'); ?>">
-                                        <svg viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zm-4-1.23l-2.5 1.5v5.5l2.5 1.5v-8.5zm6 11.5v-2h-4v2h4zm0-4v-2h-4v2h4zM3 9.97v4.06h3l3.5 3.5V6.47l-3.5 3.5H3z"/>
-                                        </svg>
-                                    </button>
-                                    <div class="mu-player-volume-slider">
-                                        <input type="range" min="0" max="100" value="100" aria-label="<?php esc_attr_e('Volume', 'astra-child'); ?>">
-                                    </div>
-                                </div>
-
-                                <span class="mu-player-time">
-                                    <span class="mu-player-time-current">0:00</span>
-                                    <span class="mu-player-time-sep">/</span>
-                                    <span class="mu-player-time-duration">0:00</span>
-                                </span>
-                            </div>
-
-                            <div class="mu-player-controls-right">
-                                <button class="mu-player-ctrl-btn" data-action="subtitles" aria-label="<?php esc_attr_e('Subtitles', 'astra-child'); ?>">
-                                    <svg viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM4 12h4v2H4v-2zm10 6H4v-2h10v2zm6 0h-4v-2h4v2zm0-4H10v-2h10v2z"/>
-                                    </svg>
-                                </button>
-
-                                <button class="mu-player-ctrl-btn" data-action="settings" aria-label="<?php esc_attr_e('Settings', 'astra-child'); ?>">
-                                    <svg viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/>
-                                    </svg>
-                                </button>
-
-                                <button class="mu-player-ctrl-btn" data-action="info" aria-label="<?php esc_attr_e('More Info', 'astra-child'); ?>">
-                                    <svg viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
-                                    </svg>
-                                </button>
-
-                                <button class="mu-player-ctrl-btn" data-action="fullscreen" aria-label="<?php esc_attr_e('Fullscreen', 'astra-child'); ?>">
-                                    <svg viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
+            <!-- Episodes -->
+            <?php if ($is_tv && !empty($tv_episodes)) : ?>
+                <div class="mu-watch-episodes">
+                    <div class="mu-watch-episodes__header">
+                        <h3 class="mu-watch-episodes__title">Episodes</h3>
+                        <?php
+                        $seasons = [];
+                        foreach ($tv_episodes as $ep) {
+                            $s = get_post_meta($ep->ID, 'season_number', true) ?: 1;
+                            if (!in_array($s, $seasons)) $seasons[] = $s;
+                        }
+                        if (count($seasons) > 1) :
+                        ?>
+                            <select class="mu-watch-episodes__select">
+                                <?php foreach ($seasons as $s) : ?>
+                                    <option value="<?php echo esc_attr($s); ?>" <?php selected($s, $current_season); ?>>Season <?php echo esc_html($s); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        <?php endif; ?>
                     </div>
-
-                    <!-- Settings Dropdown -->
-                    <div class="mu-player-settings-dropdown">
-                        <!-- Playback Speed -->
-                        <div class="mu-player-settings-section">
-                            <div class="mu-player-settings-title"><?php esc_html_e('Playback Speed', 'astra-child'); ?></div>
-                            <div class="mu-player-settings-option" data-speed="0.5">0.5x</div>
-                            <div class="mu-player-settings-option is-active" data-speed="1">1x (Normal)</div>
-                            <div class="mu-player-settings-option" data-speed="1.25">1.25x</div>
-                            <div class="mu-player-settings-option" data-speed="1.5">1.5x</div>
-                            <div class="mu-player-settings-option" data-speed="2">2x</div>
-                        </div>
-
-                        <!-- Quality -->
-                        <div class="mu-player-settings-section">
-                            <div class="mu-player-settings-title"><?php esc_html_e('Quality', 'astra-child'); ?></div>
-                            <div class="mu-player-settings-option is-active" data-quality="auto">Auto</div>
-                            <div class="mu-player-settings-option" data-quality="4k">4K (Ultra HD)</div>
-                            <div class="mu-player-settings-option" data-quality="1080p">1080p (HD)</div>
-                            <div class="mu-player-settings-option" data-quality="720p">720p (HD)</div>
-                            <div class="mu-player-settings-option" data-quality="480p">480p (SD)</div>
-                        </div>
-
-                        <!-- Subtitles -->
-                        <div class="mu-player-settings-section">
-                            <div class="mu-player-settings-title"><?php esc_html_e('Subtitles', 'astra-child'); ?></div>
-                            <div class="mu-player-settings-option is-active" data-subtitles="off">Off</div>
-                            <?php if ($sub_vtt) : ?>
-                                <div class="mu-player-settings-option" data-subtitles="en">English</div>
-                            <?php else : ?>
-                                <div class="mu-player-settings-option mu-settings-disabled" data-subtitles="none">
-                                    <?php esc_html_e('No subtitles available', 'astra-child'); ?>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Keyboard Shortcuts Toast -->
-            <div class="mu-player-shortcuts-toast">
-                <span class="mu-player-toast-msg"></span>
-            </div>
-        </div>
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- CONTENT SECTION (Below Player) -->
-    <!-- ============================================================ -->
-    <div class="mu-watch-content">
-        <div class="mu-watch-layout">
-            <!-- Main Info Column -->
-            <div class="mu-watch-info">
-                <h1 class="mu-watch-title"><?php echo esc_html($title); ?></h1>
-
-                <div class="mu-watch-meta-row">
-                    <?php if ($rating) : ?>
-                        <span class="mu-watch-meta-item mu-watch-rating">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="#ffd700">
-                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                            </svg>
-                            <?php echo esc_html($rating); ?>
-                        </span>
-                        <span class="mu-watch-meta-dot"></span>
-                    <?php endif; ?>
-                    <?php if ($year) : ?>
-                        <span class="mu-watch-meta-item"><?php echo esc_html($year); ?></span>
-                        <span class="mu-watch-meta-dot"></span>
-                    <?php endif; ?>
-                    <?php if ($runtime) : ?>
-                        <span class="mu-watch-meta-item"><?php echo esc_html($runtime); ?></span>
-                        <span class="mu-watch-meta-dot"></span>
-                    <?php endif; ?>
-                    <?php if ($age_rating) : ?>
-                        <span class="mu-watch-meta-item">
-                            <span style="border: 1px solid currentColor; padding: 1px 4px; border-radius: 3px; font-size: 11px;"><?php echo esc_html($age_rating); ?></span>
-                        </span>
-                    <?php endif; ?>
-                </div>
-
-                <?php if (!empty($genres)) : ?>
-                    <div class="mu-watch-genres">
-                        <?php echo implode('', $genres); ?>
-                    </div>
-                <?php endif; ?>
-
-                <div class="mu-watch-actions">
-                    <a href="#" class="mu-watch-btn mu-watch-btn--primary mu-btn-play" data-id="<?php echo esc_attr($id); ?>">
-                        <svg viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M8 5v14l11-7z"/>
-                        </svg>
-                        <?php esc_html_e('Play', 'astra-child'); ?>
-                    </a>
-                    <button class="mu-watch-btn mu-watch-btn--secondary mu-watch-btn--fav" data-id="<?php echo esc_attr($id); ?>">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
-                        </svg>
-                        <?php esc_html_e('My List', 'astra-child'); ?>
-                    </button>
-                    <button class="mu-watch-btn mu-watch-btn--secondary" data-action="share">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-                            <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/>
-                        </svg>
-                        <?php esc_html_e('Share', 'astra-child'); ?>
-                    </button>
-                </div>
-
-                <?php if ($description) : ?>
-                    <p class="mu-watch-overview"><?php echo wp_kses_post($description); ?></p>
-                <?php endif; ?>
-
-                <!-- Details Grid -->
-                <div class="mu-watch-details">
-                    <?php if (!empty($directors)) : ?>
-                        <div class="mu-watch-detail-item">
-                            <span class="mu-watch-detail-label"><?php esc_html_e('Director', 'astra-child'); ?>:</span>
-                            <span class="mu-watch-detail-value"><?php echo implode(', ', $directors); ?></span>
-                        </div>
-                    <?php endif; ?>
-                    <?php if (!empty($writers)) : ?>
-                        <div class="mu-watch-detail-item">
-                            <span class="mu-watch-detail-label"><?php esc_html_e('Writer', 'astra-child'); ?>:</span>
-                            <span class="mu-watch-detail-value"><?php echo esc_html(implode(', ', $writers)); ?></span>
-                        </div>
-                    <?php endif; ?>
-                    <?php if ($audio_lang) : ?>
-                        <div class="mu-watch-detail-item">
-                            <span class="mu-watch-detail-label"><?php esc_html_e('Audio', 'astra-child'); ?>:</span>
-                            <span class="mu-watch-detail-value"><?php echo esc_html($audio_lang); ?></span>
-                        </div>
-                    <?php endif; ?>
-                    <?php if ($sub_vtt) : ?>
-                        <div class="mu-watch-detail-item">
-                            <span class="mu-watch-detail-label"><?php esc_html_e('Subtitles', 'astra-child'); ?>:</span>
-                            <span class="mu-watch-detail-value"><?php esc_html_e('Available', 'astra-child'); ?></span>
-                        </div>
-                    <?php endif; ?>
-                </div>
-
-                <!-- Cast Section -->
-                <?php if (!empty($cast)) : ?>
-                    <div class="mu-watch-cast">
-                        <h3 class="mu-watch-cast-title"><?php esc_html_e('Cast', 'astra-child'); ?></h3>
-                        <div class="mu-watch-cast-list">
-                            <?php foreach ($cast as $actor) :
-                                $actor_img = get_term_meta($actor->term_id, 'image_url', true);
-                            ?>
-                                <div class="mu-watch-cast-item">
-                                    <?php if ($actor_img) : ?>
-                                        <img src="<?php echo esc_url($actor_img); ?>" alt="<?php echo esc_attr($actor->name); ?>" class="mu-watch-cast-img">
-                                    <?php else : ?>
-                                        <div class="mu-watch-cast-img">
-                                            <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
-                                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                                            </svg>
-                                        </div>
-                                    <?php endif; ?>
-                                    <span class="mu-watch-cast-name"><?php echo esc_html($actor->name); ?></span>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                <?php endif; ?>
-
-                <!-- Episode Panel -->
-                <?php if ($is_tv && !empty($tv_episodes)) : ?>
-                    <div class="mu-watch-episodes">
-                        <div class="mu-watch-episodes-header">
-                            <h3 class="mu-watch-episodes-title"><?php esc_html_e('Episodes', 'astra-child'); ?></h3>
-                            <?php
-                            $seasons = [];
-                            foreach ($tv_episodes as $ep) {
-                                $s = get_post_meta($ep->ID, 'season_number', true) ?: 1;
-                                if (!in_array($s, $seasons)) $seasons[] = $s;
-                            }
-                            if (count($seasons) > 1) :
-                            ?>
-                                <select class="mu-watch-season-select">
-                                    <?php foreach ($seasons as $s) : ?>
-                                        <option value="<?php echo esc_attr($s); ?>" <?php selected($s, $current_season); ?>>
-                                            <?php printf(esc_html__('Season %d', 'astra-child'), $s); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            <?php endif; ?>
-                        </div>
-                        <div class="mu-watch-episodes-list">
-                            <?php foreach ($tv_episodes as $ep) :
-                                $ep_season = get_post_meta($ep->ID, 'season_number', true) ?: 1;
-                                $ep_num = get_post_meta($ep->ID, 'episode_number', true) ?: 1;
-                                $ep_thumb = get_the_post_thumbnail_url($ep->ID, 'medium');
-                                $ep_runtime = get_post_meta($ep->ID, 'runtime', true) ?: get_post_meta($ep->ID, '_duration', true) ?: '';
-                                $ep_desc = get_the_excerpt($ep->ID);
-                                $wbase = function_exists('mu_get_page_url_by_slug') ? mu_get_page_url_by_slug('watch') : home_url('/watch');
-                                $ep_watch_url = add_query_arg('episode_id', $ep->ID, $wbase);
-                                $is_current = ((int) $ep->ID === $id);
-                            ?>
-                                <a href="<?php echo esc_url($ep_watch_url); ?>"
-                                   class="mu-watch-episode-card <?php echo $is_current ? 'is-active' : ''; ?>"
-                                   data-season="<?php echo esc_attr($ep_season); ?>"
-                                   data-episode-id="<?php echo esc_attr($ep->ID); ?>">
-                                    <div class="mu-watch-episode-thumb" style="<?php echo $ep_thumb ? 'background-image: url(' . esc_url($ep_thumb) . '); background-size: cover;' : ''; ?>">
-                                        <div class="mu-watch-episode-play-overlay">
-                                            <div class="mu-watch-episode-play-icon">
-                                                <svg viewBox="0 0 24 24">
-                                                    <path d="M8 5v14l11-7z"/>
-                                                </svg>
-                                            </div>
+                    <div class="mu-watch-episodes__list">
+                        <?php foreach ($tv_episodes as $ep) :
+                            $ep_season = get_post_meta($ep->ID, 'season_number', true) ?: 1;
+                            $ep_num = get_post_meta($ep->ID, 'episode_number', true) ?: 1;
+                            $ep_thumb = get_the_post_thumbnail_url($ep->ID, 'medium');
+                            $ep_runtime = get_post_meta($ep->ID, 'runtime', true) ?: get_post_meta($ep->ID, '_duration', true) ?: '';
+                            $ep_desc = get_the_excerpt($ep->ID);
+                            $wbase = function_exists('mu_get_page_url_by_slug') ? mu_get_page_url_by_slug('watch') : home_url('/watch');
+                            $ep_watch_url = add_query_arg('episode_id', $ep->ID, $wbase);
+                            $is_current = ((int) $ep->ID === $id);
+                        ?>
+                            <a href="<?php echo esc_url($ep_watch_url); ?>" class="mu-watch-episode<?php echo $is_current ? ' is-active' : ''; ?>" data-season="<?php echo esc_attr($ep_season); ?>">
+                                <div class="mu-watch-episode__thumb" <?php echo $ep_thumb ? 'style="background-image: url(' . esc_url($ep_thumb) . ')"' : ''; ?>>
+                                    <div class="mu-watch-episode__play">
+                                        <div class="mu-watch-episode__play-icon">
+                                            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                                         </div>
                                     </div>
-                                    <div class="mu-watch-episode-info">
-                                        <span class="mu-watch-episode-num"><?php printf(esc_html__('Episode %d', 'astra-child'), $ep_num); ?></span>
-                                        <h4 class="mu-watch-episode-title"><?php echo esc_html($ep->post_title); ?></h4>
-                                        <?php if ($ep_desc) : ?>
-                                            <p class="mu-watch-episode-desc"><?php echo esc_html($ep_desc); ?></p>
+                                </div>
+                                <div class="mu-watch-episode__info">
+                                    <span class="mu-watch-episode__number">Episode <?php echo esc_html($ep_num); ?></span>
+                                    <h4 class="mu-watch-episode__title"><?php echo esc_html($ep->post_title); ?></h4>
+                                    <?php if ($ep_desc) : ?>
+                                        <p class="mu-watch-episode__desc"><?php echo esc_html($ep_desc); ?></p>
+                                    <?php endif; ?>
+                                    <div class="mu-watch-episode__meta">
+                                        <?php if ($ep_runtime) : ?>
+                                            <span><?php echo esc_html($ep_runtime); ?> min</span>
                                         <?php endif; ?>
-                                        <div class="mu-watch-episode-meta">
-                                            <?php if ($ep_runtime) : ?>
-                                                <span><?php echo esc_html($ep_runtime); ?> min</span>
-                                            <?php endif; ?>
-                                            <div class="mu-watch-episode-progress">
-                                                <div class="mu-watch-episode-progress-bar" style="width: 0%;"></div>
-                                            </div>
+                                        <div class="mu-watch-episode__progress">
+                                            <div class="mu-watch-episode__progress-bar" style="width: 0%"></div>
                                         </div>
                                     </div>
-                                </a>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                <?php elseif ($is_tv) : ?>
-                    <div class="mu-watch-episodes">
-                        <div class="mu-watch-episodes-header">
-                            <h3 class="mu-watch-episodes-title"><?php esc_html_e('Episodes', 'astra-child'); ?></h3>
-                        </div>
-                        <div class="mu-watch-empty-state">
-                            <p><?php esc_html_e('No episodes available for this TV show yet.', 'astra-child'); ?></p>
-                        </div>
-                    </div>
-                <?php endif; ?>
-            </div>
-
-            <!-- Sidebar -->
-            <div class="mu-watch-sidebar">
-                <!-- Up Next -->
-                <?php if ($up_next) : ?>
-                    <div class="mu-watch-upnext">
-                        <h3 class="mu-watch-upnext-title">
-                            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                            <?php esc_html_e('Up Next', 'astra-child'); ?>
-                        </h3>
-                        <a href="<?php echo esc_url($up_next['href']); ?>" class="mu-watch-upnext-card">
-                            <img src="<?php echo esc_url($up_next['thumb'] ?: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 9"%3E%3Crect fill="%23333" width="16" height="9"/%3E%3C/svg%3E'); ?>" alt="" class="mu-watch-upnext-thumb">
-                            <div class="mu-watch-upnext-info">
-                                <h4 class="mu-watch-upnext-name"><?php echo esc_html($up_next['title']); ?></h4>
-                                <p class="mu-watch-upnext-meta"><?php printf(esc_html__('Episode %d', 'astra-child'), $up_next['episode']); ?></p>
-                                <div class="mu-watch-upnext-progress">
-                                    <div class="mu-watch-upnext-progress-bar" style="width: 0%;"></div>
                                 </div>
-                            </div>
-                        </a>
+                            </a>
+                        <?php endforeach; ?>
                     </div>
-                <?php endif; ?>
+                </div>
+            <?php elseif ($is_tv) : ?>
+                <div class="mu-watch-empty">
+                    <p>No episodes available yet.</p>
+                </div>
+            <?php endif; ?>
 
-                <!-- Related Movies -->
-                <?php if (!empty($related_movies)) : ?>
-                    <div class="mu-watch-related">
-                        <h3 class="mu-watch-related-title"><?php esc_html_e('More Like This', 'astra-child'); ?></h3>
-                        <div class="mu-watch-related-grid">
-                            <?php foreach ($related_movies as $rel) :
-                                $rel_thumb = get_the_post_thumbnail_url($rel->ID, 'medium');
-                                $rel_year = get_post_meta($rel->ID, '_release_year', true) ?: '';
-                                $rel_runtime = get_post_meta($rel->ID, '_duration', true) ?: '';
-                                $rel_rating = get_post_meta($rel->ID, '_rating', true) ?: '';
-                            ?>
-                                <a href="<?php echo esc_url(get_permalink($rel->ID)); ?>" class="mu-watch-related-item">
-                                    <img src="<?php echo esc_url($rel_thumb ?: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 120"%3E%3Crect fill="%23333" width="80" height="120"/%3E%3C/svg%3E'); ?>"
-                                         alt="<?php echo esc_attr($rel->post_title); ?>"
-                                         class="mu-watch-related-thumb"
-                                         loading="lazy">
-                                    <div class="mu-watch-related-info">
-                                        <h4 class="mu-watch-related-name"><?php echo esc_html($rel->post_title); ?></h4>
-                                        <div class="mu-watch-related-meta">
-                                            <?php if ($rel_year) : ?>
-                                                <span><?php echo esc_html(substr($rel_year, 0, 4)); ?></span>
-                                            <?php endif; ?>
-                                            <?php if ($rel_runtime) : ?>
-                                                <span><?php echo esc_html($rel_runtime); ?> min</span>
-                                            <?php endif; ?>
-                                            <?php if ($rel_rating) : ?>
-                                                <span><?php echo esc_html($rel_rating); ?></span>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
-                                </a>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                <?php endif; ?>
-            </div>
         </div>
-    </div>
+
+        <!-- SIDEBAR (RIGHT) -->
+        <aside class="mu-watch-sidebar">
+            
+            <?php if ($up_next) : ?>
+                <div class="mu-watch-upnext">
+                    <div class="mu-watch-upnext__header">
+                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        <span class="mu-watch-upnext__title">Up Next</span>
+                    </div>
+                    <a href="<?php echo esc_url($up_next['href']); ?>" class="mu-watch-upnext__card">
+                        <img src="<?php echo esc_url($up_next['thumb'] ?: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 9"%3E%3Crect fill="%23333" width="16" height="9"/%3E%3C/svg%3E'); ?>" alt="" class="mu-watch-upnext__thumb">
+                        <div class="mu-watch-upnext__info">
+                            <h4 class="mu-watch-upnext__name"><?php echo esc_html($up_next['title']); ?></h4>
+                            <p class="mu-watch-upnext__episode">Episode <?php echo esc_html($up_next['episode']); ?></p>
+                            <div class="mu-watch-upnext__progress">
+                                <div class="mu-watch-upnext__progress-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            <?php endif; ?>
+
+            <?php if (!empty($related_movies)) : ?>
+                <div class="mu-watch-related">
+                    <h3 class="mu-watch-related__title">More Like This</h3>
+                    <div class="mu-watch-related__list">
+                        <?php foreach ($related_movies as $rel) :
+                            $rel_thumb = get_the_post_thumbnail_url($rel->ID, 'medium');
+                            $rel_year = get_post_meta($rel->ID, '_release_year', true) ?: '';
+                            $rel_runtime = get_post_meta($rel->ID, '_duration', true) ?: '';
+                            $rel_rating = get_post_meta($rel->ID, '_rating', true) ?: '';
+                        ?>
+                            <a href="<?php echo esc_url(get_permalink($rel->ID)); ?>" class="mu-watch-related__item">
+                                <img src="<?php echo esc_url($rel_thumb ?: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 90"%3E%3Crect fill="%23333" width="60" height="90"/%3E%3C/svg%3E'); ?>" alt="<?php echo esc_attr($rel->post_title); ?>" class="mu-watch-related__thumb">
+                                <div class="mu-watch-related__info">
+                                    <h4 class="mu-watch-related__name"><?php echo esc_html($rel->post_title); ?></h4>
+                                    <div class="mu-watch-related__meta">
+                                        <?php if ($rel_year) : ?><span><?php echo esc_html(substr($rel_year, 0, 4)); ?></span><?php endif; ?>
+                                        <?php if ($rel_runtime) : ?><span><?php echo esc_html($rel_runtime); ?> min</span><?php endif; ?>
+                                        <?php if ($rel_rating) : ?><span><?php echo esc_html($rel_rating); ?></span><?php endif; ?>
+                                    </div>
+                                </div>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+        </aside>
+
+    </main>
+
 </div>
 
 <?php wp_footer(); ?>
+<script src="<?php echo esc_url(get_theme_file_uri('assets/js/ms-watch.js')); ?>"></script>
 <script>
 window.MOVIE_UI = <?php echo wp_json_encode($player_settings); ?>;
 </script>

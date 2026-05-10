@@ -555,6 +555,32 @@ $pills = [
         width: 140px;
     }
 }
+/* FIX: Trending 9-10 bị che bên phải */
+.trending-content {
+  max-width: none !important;
+  width: 100% !important;
+  padding-left: 4% !important;
+  padding-right: 5% !important;
+  overflow: hidden !important;
+}
+
+.trending-today-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 14px !important;
+}
+
+.trend-today-item {
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.trend-today-item__info {
+  min-width: 0 !important;
+}
+
+.trend-today-item__title {
+  max-width: 100% !important;
+}
 </style>
 
 <div class="trending-page">
@@ -670,7 +696,7 @@ $pills = [
                         $video = movie_ui_meta($pid, ['video_url', '_video_url'], '');
                         $detail_url = get_permalink($pid);
                         $watch_url = add_query_arg('id', $pid, $watch_base);
-                        $play_action = $trailer ? 'trailer:' . esc_attr($trailer) : ($video ? 'watch:' . esc_url($watch_url) : '');
+                        $play_action = 'watch:' . esc_url($watch_url);
                         ?>
                         <div class="trend-card" 
                              data-id="<?php echo esc_attr($pid); ?>"
@@ -682,13 +708,11 @@ $pills = [
                                 <img class="trend-card__poster" src="<?php echo esc_url($poster); ?>" alt="<?php echo esc_attr($title); ?>" loading="lazy">
                                 <div class="trend-card__overlay">
                                     <div class="trend-card__actions">
-                                        <?php if ($play_action) : ?>
-                                            <button class="trend-card__btn trend-card__btn--play mu-btn mu-btn--play" data-action="<?php echo esc_attr($play_action); ?>" title="Play">
+                                        <button class="trend-card__btn trend-card__btn--play mu-btn mu-btn--play" data-watch-url="<?php echo esc_url($watch_url); ?>" title="Play">
                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="#000000" xmlns="http://www.w3.org/2000/svg">
                                                     <path d="M8 5v14l11-7z"/>
                                                 </svg>
                                             </button>
-                                        <?php endif; ?>
                                         <button class="trend-card__btn trend-card__btn--fav mu-btn mu-fav" data-favorite="<?php echo esc_attr($pid); ?>" title="Add to My List">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg">
                                                 <line x1="12" y1="5" x2="12" y2="19"/>
@@ -748,7 +772,7 @@ $pills = [
                         $video = movie_ui_meta($pid, ['video_url', '_video_url'], '');
                         $detail_url = get_permalink($pid);
                         $watch_url = add_query_arg('id', $pid, $watch_base);
-                        $play_action = $trailer ? 'trailer:' . esc_attr($trailer) : ($video ? 'watch:' . esc_url($watch_url) : '');
+                        $play_action = 'watch:' . esc_url($watch_url);
                         ?>
                         <div class="trend-card" 
                              data-id="<?php echo esc_attr($pid); ?>"
@@ -760,13 +784,11 @@ $pills = [
                                 <img class="trend-card__poster" src="<?php echo esc_url($poster); ?>" alt="<?php echo esc_attr($title); ?>" loading="lazy">
                                 <div class="trend-card__overlay">
                                     <div class="trend-card__actions">
-                                        <?php if ($play_action) : ?>
-                                            <button class="trend-card__btn trend-card__btn--play mu-btn mu-btn--play" data-action="<?php echo esc_attr($play_action); ?>" title="Play">
+                                        <button class="trend-card__btn trend-card__btn--play mu-btn mu-btn--play" data-watch-url="<?php echo esc_url($watch_url); ?>" title="Play">
                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="#000000" xmlns="http://www.w3.org/2000/svg">
                                                     <path d="M8 5v14l11-7z"/>
                                                 </svg>
                                             </button>
-                                        <?php endif; ?>
                                         <button class="trend-card__btn trend-card__btn--fav mu-btn mu-fav" data-favorite="<?php echo esc_attr($pid); ?>" title="Add to My List">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg">
                                                 <line x1="12" y1="5" x2="12" y2="19"/>
@@ -903,6 +925,25 @@ function closeTrailerModal() {
     document.body.style.overflow = '';
     if (area) area.innerHTML = '';
 }
+
+window.toggleTimeDropdown = function () {
+  const dropdown = document.getElementById('timeDropdown');
+  if (!dropdown) return;
+
+  dropdown.classList.toggle('is-open');
+};
+
+document.addEventListener('click', function (e) {
+  const dropdown = document.getElementById('timeDropdown');
+  if (!dropdown) return;
+
+  const clickedInside = dropdown.contains(e.target);
+  const clickedBtn = e.target.closest('.trending-time-btn');
+
+  if (!clickedInside && !clickedBtn) {
+    dropdown.classList.remove('is-open');
+  }
+});
 </script>
 
 <?php get_footer(); ?>

@@ -20,6 +20,7 @@ function mu_required_streaming_pages_meta(): array {
         'trending'     => ['title' => 'Trending', 'template' => 'page-trending.php'],
         'top-rated'    => ['title' => 'Top Rated', 'template' => 'page-top-rated.php'],
         'new-releases' => ['title' => 'New Releases', 'template' => 'page-new-releases.php'],
+        'movies'       => ['title' => 'Movies', 'template' => 'page-movies.php'],
     ];
 }
 

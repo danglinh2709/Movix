@@ -351,6 +351,8 @@
 
   /* ================================================================
      HERO PLAY / INFO / FAV BUTTONS
+     IMPORTANT: Play button ALWAYS goes to Watch page (data-watch-url).
+     Never fallback to trailer.
   ================================================================ */
   (function initHeroButtons() {
     /* Play Now button */
@@ -359,16 +361,11 @@
       if (!btn) return;
       e.preventDefault();
 
-      var action = btn.getAttribute('data-play-action') || '';
+      // Watch URL is always available - Play goes to Watch page
       var watchUrl = btn.getAttribute('data-watch-url') || '';
-      var detailUrl = btn.getAttribute('data-detail-url') || '';
 
-      if (action.indexOf('trailer:') === 0) {
-        var trailerUrl = action.replace('trailer:', '');
-        openTrailer(trailerUrl);
-      } else if (action.indexOf('watch:') === 0 || watchUrl) {
-        var url = action.indexOf('watch:') === 0 ? action.replace('watch:', '') : watchUrl;
-        window.location.href = url;
+      if (watchUrl) {
+        window.location.href = watchUrl;
       } else {
         openUnavailableModal();
       }
@@ -654,6 +651,8 @@
 
   /* ================================================================
      CARD PLAY / INFO BUTTONS
+     IMPORTANT: Play button ALWAYS goes to Watch page (data-watch-url).
+     Never fallback to trailer.
   ================================================================ */
   (function initCardInteractions() {
     /* Card Play button - handles both .mu-card and .mu-grid-card */
@@ -664,19 +663,11 @@
       e.stopPropagation();
 
       var card = btn.closest('.mu-card, .mu-grid-card');
-      var action = btn.getAttribute('data-play-action') || (card && card.getAttribute('data-play-action')) || '';
+      // Watch URL is always available - Play goes to Watch page
       var watchUrl = btn.getAttribute('data-watch-url') || (card && card.getAttribute('data-watch-url')) || '';
-      var trailer = btn.getAttribute('data-trailer') || (card && card.getAttribute('data-trailer')) || '';
 
-      if (action.indexOf('trailer:') === 0) {
-        var trailerUrl = action.replace('trailer:', '');
-        openTrailer(trailerUrl);
-      } else if (action.indexOf('watch:') === 0) {
-        window.location.href = action.replace('watch:', '');
-      } else if (watchUrl) {
+      if (watchUrl) {
         window.location.href = watchUrl;
-      } else if (trailer) {
-        openTrailer(trailer);
       } else {
         openUnavailableModal();
       }
@@ -1254,21 +1245,18 @@
       }
     });
 
-    /* Play button → trailer or watch */
+    /* Play button → Watch page (never trailer) */
     container.addEventListener('click', function (e) {
       var btn = e.target.closest('.rank-card__btn--play');
       if (!btn) return;
       e.stopPropagation();
 
-      var card = btn.closest('.rank-card');
-      var action = btn.getAttribute('data-action') || '';
+      var watchUrl = btn.getAttribute('data-watch-url') || '';
 
-      if (action.indexOf('trailer:') === 0) {
-        var trailerUrl = action.replace('trailer:', '');
-        openTrailer(trailerUrl);
-      } else if (action.indexOf('watch:') === 0) {
-        var watchUrl = action.replace('watch:', '');
+      if (watchUrl) {
         window.location.href = watchUrl;
+      } else {
+        openUnavailableModal();
       }
     });
 

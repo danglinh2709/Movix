@@ -1026,7 +1026,7 @@ $ajax_nonce = wp_create_nonce('mu_mylist_ajax');
                         $video = movie_ui_meta($pid, ['video_url', '_video_url'], '');
                         $watch_url = add_query_arg('id', $pid, $watch_base);
                         $detail_url = get_permalink($pid);
-                        $play_action = $trailer ? 'trailer:' . esc_attr($trailer) : ($video ? 'watch:' . esc_url($watch_url) : '');
+                        $play_action = 'watch:' . esc_url($watch_url);
                         $progress = 35; // Placeholder - in real implementation, get from localStorage/DB
                         $remaining = '45m remaining';
                     ?>
@@ -1105,7 +1105,7 @@ $ajax_nonce = wp_create_nonce('mu_mylist_ajax');
                         $video = movie_ui_meta($pid, ['video_url', '_video_url'], '');
                         $watch_url = add_query_arg('id', $pid, $watch_base);
                         $detail_url = get_permalink($pid);
-                        $play_action = $trailer ? 'trailer:' . esc_attr($trailer) : ($video ? 'watch:' . esc_url($watch_url) : '');
+                        $play_action = 'watch:' . esc_url($watch_url);
                         ?>
                         <article class="mylist-card"
                                  data-id="<?php echo esc_attr($pid); ?>"
@@ -1184,7 +1184,7 @@ $ajax_nonce = wp_create_nonce('mu_mylist_ajax');
                         $video = movie_ui_meta($pid, ['video_url', '_video_url'], '');
                         $watch_url = add_query_arg('id', $pid, $watch_base);
                         $detail_url = get_permalink($pid);
-                        $play_action = $trailer ? 'trailer:' . esc_attr($trailer) : ($video ? 'watch:' . esc_url($watch_url) : '');
+                        $play_action = 'watch:' . esc_url($watch_url);
                         
                         // Get season count
                         $eps = get_posts([

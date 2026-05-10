@@ -1,811 +1,445 @@
 <?php
 /**
- * Browse Movies — Premium OTT Interface
- * Full functional Movies Archive Page
+ * Movies Archive - Premium OTT Streaming Platform
+ * Netflix/HBO Max/Prime Video Quality
+ * URL: /movies/
  */
+defined('ABSPATH') || exit;
+
 get_header();
 get_template_part('template-parts/streaming/header');
 
-// =================================================================
-// DATA PREPARATION
-// =================================================================
+// ============================================================
+// URL PARAMETERS & STATE
+// ============================================================
+$current_genre = isset($_GET['genre']) ? sanitize_text_field(wp_unslash($_GET['genre'])) : '';
+$current_sort = isset($_GET['sort']) ? sanitize_text_field(wp_unslash($_GET['sort'])) : 'featured';
+$search_query = isset($_GET['s']) ? sanitize_text_field(wp_unslash($_GET['s'])) : '';
+$is_filtered = !empty($current_genre) || !empty($search_query);
 
-// Get all taxonomies
-$all_genres   = get_terms(['taxonomy' => 'genre',   'hide_empty' => true]);
-$all_countries = get_terms(['taxonomy' => 'country', 'hide_empty' => true]);
-$all_types     = get_terms(['taxonomy' => 'movie_type', 'hide_empty' => true]);
+// ============================================================
+// URLs
+// ============================================================
+$watch_base = function_exists('mu_get_page_url_by_slug') ? mu_get_page_url_by_slug('watch') : trailingslashit(home_url('watch'));
+$movies_archive_url = get_post_type_archive_link('movie') ?: trailingslashit(home_url('movies'));
 
-// Get available years from movies
-global $wpdb;
-$year_results = $wpdb->get_results(
-    "SELECT DISTINCT meta_value FROM {$wpdb->postmeta} 
-     WHERE meta_key = '_release_year' AND meta_value != '' 
-     ORDER BY meta_value DESC LIMIT 20"
-);
-$available_years = array_column($year_results, 'meta_value');
+// ============================================================
+// COUNT
+// ============================================================
+$movie_count = wp_count_posts('movie');
+$total_movies = $movie_count && isset($movie_count->publish) ? (int) $movie_count->publish : 0;
 
-// Get movie statistics
-$total_movies = wp_count_posts('movie')->publish;
-$latest_year  = !empty($available_years) ? max($available_years) : date('Y');
-$highest_rating = $wpdb->get_var(
-    "SELECT MAX(CAST(meta_value AS DECIMAL(3,1))) FROM {$wpdb->postmeta} 
-     WHERE meta_key = '_rating' AND meta_value != ''"
-);
+// ============================================================
+// GENRES
+// ============================================================
+$all_genres = get_terms([
+    'taxonomy' => 'genre',
+    'hide_empty' => true,
+    'number' => 20,
+]);
 
-// =================================================================
-// FILTER PARAMETERS
-// =================================================================
-$current_genre    = isset($_GET['genre']) ? sanitize_text_field($_GET['genre']) : '';
-$current_country  = isset($_GET['country']) ? sanitize_text_field($_GET['country']) : '';
-$current_year     = isset($_GET['year']) ? sanitize_text_field($_GET['year']) : '';
-$current_type     = isset($_GET['type']) ? sanitize_text_field($_GET['type']) : '';
-$current_rating   = isset($_GET['rating']) ? floatval($_GET['rating']) : 0;
-$current_quality  = isset($_GET['quality']) ? sanitize_text_field($_GET['quality']) : '';
-$current_sort     = isset($_GET['sort']) ? sanitize_text_field($_GET['sort']) : 'latest';
-$current_search   = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
-$current_page     = max(1, get_query_var('paged') ?: 1);
-
-// Build active filters array
-$active_filters = [];
-if ($current_genre)   $active_filters['genre']   = $current_genre;
-if ($current_country) $active_filters['country'] = $current_country;
-if ($current_year)    $active_filters['year']     = $current_year;
-if ($current_type)    $active_filters['type']     = $current_type;
-if ($current_rating)  $active_filters['rating']   = $current_rating;
-if ($current_quality) $active_filters['quality'] = $current_quality;
-
-$is_filtered = !empty($active_filters) || !empty($current_search);
-$archive_url = trailingslashit(home_url('movies'));
-
-// =================================================================
-// WP_QUERY BUILDER
-// =================================================================
-function mu_build_movies_query($args = []) {
-    $defaults = [
-        'post_type'      => 'movie',
-        'posts_per_page'  => 24,
-        'paged'          => 1,
-        'post_status'     => 'publish',
-        'orderby'        => 'date',
-        'order'          => 'DESC',
+$genre_list = [];
+foreach ($all_genres as $g) {
+    $genre_list[] = [
+        'slug' => $g->slug,
+        'name' => $g->name,
     ];
-    
-    $args = wp_parse_args($args, $defaults);
-    
-    // Build meta query
-    $meta_query = [];
-    
-    // Year filter
-    if (!empty($_GET['year'])) {
-        $year = sanitize_text_field($_GET['year']);
-        if ($year === 'before_2021') {
-            $meta_query[] = [
-                'key'     => '_release_year',
-                'value'   => '2021',
-                'compare' => '<',
-                'type'    => 'NUMERIC'
-            ];
-        } elseif (is_numeric($year)) {
-            $meta_query[] = [
-                'key'     => '_release_year',
-                'value'   => $year,
-                'compare' => '=',
-                'type'    => 'NUMERIC'
-            ];
-        }
-    }
-    
-    // Rating filter
-    if (!empty($_GET['rating']) && is_numeric($_GET['rating'])) {
-        $rating = floatval($_GET['rating']);
-        $meta_query[] = [
-            'key'     => '_rating',
-            'value'   => $rating,
-            'compare' => '>=',
-            'type'    => 'DECIMAL(3,1)'
-        ];
-    }
-    
-    // Quality filter
-    if (!empty($_GET['quality'])) {
-        $meta_query[] = [
-            'key'   => '_quality',
-            'value' => sanitize_text_field($_GET['quality']),
-        ];
-    }
-    
-    // Add meta query to args
-    if (!empty($meta_query)) {
-        $args['meta_query'] = $meta_query;
-    }
-    
-    // Build taxonomy query
-    $tax_query = [];
-    
-    if (!empty($_GET['genre'])) {
-        $tax_query[] = [
-            'taxonomy' => 'genre',
-            'field'    => 'slug',
-            'terms'    => sanitize_text_field($_GET['genre']),
-        ];
-    }
-    
-    if (!empty($_GET['country'])) {
-        $tax_query[] = [
-            'taxonomy' => 'country',
-            'field'    => 'slug',
-            'terms'    => sanitize_text_field($_GET['country']),
-        ];
-    }
-    
-    if (!empty($_GET['type'])) {
-        $tax_query[] = [
-            'taxonomy' => 'movie_type',
-            'field'    => 'slug',
-            'terms'    => sanitize_text_field($_GET['type']),
-        ];
-    }
-    
-    if (!empty($tax_query)) {
-        if (count($tax_query) > 1) {
-            $tax_query['relation'] = 'AND';
-        }
-        $args['tax_query'] = $tax_query;
-    }
-    
-    // Search
-    if (!empty($_GET['s'])) {
-        $args['s'] = sanitize_text_field($_GET['s']);
-    }
-    
-    // Sorting
-    $sort = isset($_GET['sort']) ? sanitize_text_field($_GET['sort']) : 'latest';
-    switch ($sort) {
-        case 'popular':
-            $args['meta_key'] = '_view_count';
-            $args['orderby']  = 'meta_value_num';
-            $args['order']    = 'DESC';
-            break;
-        case 'top_rated':
-            $args['meta_key'] = '_rating';
-            $args['orderby']  = 'meta_value_num';
-            $args['order']    = 'DESC';
-            break;
-        case 'oldest':
-            $args['orderby'] = 'date';
-            $args['order']   = 'ASC';
-            break;
-        case 'a_z':
-            $args['orderby'] = 'title';
-            $args['order']   = 'ASC';
-            break;
-        case 'z_a':
-            $args['orderby'] = 'title';
-            $args['order']   = 'DESC';
-            break;
-        default: // latest
-            $args['orderby'] = 'date';
-            $args['order']   = 'DESC';
-    }
-    
-    return new WP_Query($args);
 }
 
-// Get movies
-$movies_query = mu_build_movies_query(['paged' => $current_page]);
-?>
+// ============================================================
+// HERO: Featured Movies
+// ============================================================
+$hero_args = [
+    'post_type' => 'movie',
+    'posts_per_page' => 5,
+    'meta_key' => '_rating',
+    'orderby' => 'meta_value_num',
+    'order' => 'DESC',
+];
+$hero_q = new WP_Query($hero_args);
 
-<div class="mu-page mu-archive-movies">
+$hero_slides = [];
+if ($hero_q->have_posts()) {
+    while ($hero_q->have_posts()) {
+        $hero_q->the_post();
+        $hid = get_the_ID();
+        
+        // Get metadata
+        $backdrop = '';
+        if (function_exists('movie_ui_backdrop_url')) {
+            $backdrop = movie_ui_backdrop_url($hid);
+        }
+        if (!$backdrop) {
+            $thumb_id = get_post_thumbnail_id($hid);
+            if ($thumb_id) {
+                $bg = wp_get_attachment_image_src($thumb_id, 'large');
+                $backdrop = $bg[0] ?? '';
+            }
+        }
+        
+        $poster = get_the_post_thumbnail_url($hid, 'medium');
+        $rating = movie_ui_meta($hid, ['rating', '_rating'], '');
+        $year = movie_ui_meta($hid, ['year', '_release_year'], '');
+        $age = movie_ui_meta($hid, ['age_rating', '_age_rating'], '');
+        $runtime = movie_ui_meta($hid, ['duration', '_duration'], '');
+        $quality = movie_ui_meta($hid, ['quality', '_quality'], 'HD');
+        $genres = movie_ui_terms_text($hid, 'genre', 2);
+        $overview = wp_trim_words(wp_strip_all_tags(get_the_content() ?: get_the_excerpt() ?: ''), 35);
+        
+        $watch_url = add_query_arg('id', $hid, $watch_base);
+        $detail_url = get_permalink($hid);
+        
+        $hero_slides[] = [
+            'id' => $hid,
+            'title' => get_the_title(),
+            'backdrop' => $backdrop,
+            'poster' => $poster,
+            'rating' => $rating,
+            'year' => $year,
+            'age' => $age,
+            'runtime' => $runtime,
+            'quality' => $quality,
+            'genres' => $genres,
+            'overview' => $overview,
+            'watch_url' => $watch_url,
+            'detail_url' => $detail_url,
+        ];
+    }
+    wp_reset_postdata();
+}
 
-    <?php // =================================================================
-          // HERO SECTION
-          // ================================================================= ?>
-    <section class="mu-movies-hero">
-        <div class="mu-movies-hero__bg"></div>
-        <div class="mu-movies-hero__content">
-            <h1 class="mu-movies-hero__title">Movies</h1>
-            <p class="mu-movies-hero__subtitle">Explore thousands of movies from all genres.</p>
-            
-            <div class="mu-movies-hero__stats">
-                <div class="mu-stat">
-                    <span class="mu-stat__icon">🎬</span>
-                    <div class="mu-stat__info">
-                        <strong><?php echo number_format($total_movies); ?></strong>
-                        <span>Movies</span>
-                    </div>
+// ============================================================
+// SECTIONS DATA
+// ============================================================
+
+// Popular Movies
+$popular_q = new WP_Query([
+    'post_type' => 'movie',
+    'posts_per_page' => 16,
+    'meta_key' => '_view_count',
+    'orderby' => 'meta_value_num',
+    'order' => 'DESC',
+    'no_found_rows' => true,
+]);
+
+// New Releases
+$newrel_q = new WP_Query([
+    'post_type' => 'movie',
+    'posts_per_page' => 16,
+    'orderby' => 'date',
+    'order' => 'DESC',
+    'no_found_rows' => true,
+]);
+
+// Top Rated
+$toprated_q = new WP_Query([
+    'post_type' => 'movie',
+    'posts_per_page' => 16,
+    'meta_key' => '_rating',
+    'orderby' => 'meta_value_num',
+    'order' => 'DESC',
+    'no_found_rows' => true,
+]);
+
+// Trending
+$trending_q = new WP_Query([
+    'post_type' => 'movie',
+    'posts_per_page' => 16,
+    'meta_key' => '_view_count',
+    'orderby' => 'meta_value_num',
+    'order' => 'DESC',
+    'offset' => 0,
+    'no_found_rows' => true,
+]);
+
+// ============================================================
+// HELPERS
+// ============================================================
+function mu_render_movie_card_data($post_id, $watch_base) {
+    $poster = get_the_post_thumbnail_url($post_id, 'medium');
+    $rating = movie_ui_meta($post_id, ['rating', '_rating'], '');
+    $year = movie_ui_meta($post_id, ['year', '_release_year'], '');
+    $quality = movie_ui_meta($post_id, ['quality', '_quality'], 'HD');
+    $runtime = movie_ui_meta($post_id, ['duration', '_runtime'], '');
+    
+    return [
+        'id' => $post_id,
+        'title' => get_the_title($post_id),
+        'poster' => $poster,
+        'rating' => $rating,
+        'year' => $year,
+        'quality' => $quality,
+        'runtime' => $runtime,
+        'watch_url' => add_query_arg('id', $post_id, $watch_base),
+        'detail_url' => get_permalink($post_id),
+    ];
+}
+
+function mu_movie_render_card($data) {
+    $poster_placeholder = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 330"%3E%3Crect fill="%23111" width="220" height="330"/%3E%3C/svg%3E';
+    ?>
+    <div class="tv-card" data-id="<?php echo esc_attr($data['id']); ?>" data-href="<?php echo esc_url($data['detail_url']); ?>">
+        <div class="tv-card__poster">
+            <img src="<?php echo esc_url($data['poster'] ?: $poster_placeholder); ?>" 
+                 alt="<?php echo esc_attr($data['title']); ?>" 
+                 class="tv-card__img"
+                 loading="lazy">
+            <?php if (!empty($data['quality'])) : ?>
+                <span class="tv-card__badge" style="background:rgba(0,0,0,0.8);"><?php echo esc_html($data['quality']); ?></span>
+            <?php endif; ?>
+            <div class="tv-card__overlay">
+                <div class="tv-card__actions">
+                    <button class="tv-card__action tv-card__action--play" 
+                            data-action="play" 
+                            data-href="<?php echo esc_url($data['watch_url']); ?>"
+                            aria-label="Play">
+                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                    <button class="tv-card__action" 
+                            data-action="add-list"
+                            aria-label="Add to My List">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
+                        </svg>
+                    </button>
+                    <button class="tv-card__action" 
+                            data-action="info"
+                            aria-label="More Info">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="16" x2="12" y2="12"/>
+                            <line x1="12" y1="8" x2="12.01" y2="8"/>
+                        </svg>
+                    </button>
                 </div>
-                <div class="mu-stat">
-                    <span class="mu-stat__icon" style="color: #46d369;">4K</span>
-                    <div class="mu-stat__info">
-                        <strong>Ultra HD</strong>
-                        <span>Quality</span>
-                    </div>
-                </div>
-                <div class="mu-stat">
-                    <span class="mu-stat__icon">📅</span>
-                    <div class="mu-stat__info">
-                        <strong><?php echo esc_html($latest_year ?: date('Y')); ?></strong>
-                        <span>Latest</span>
-                    </div>
-                </div>
-                <?php if ($highest_rating): ?>
-                <div class="mu-stat">
-                    <span class="mu-stat__icon" style="color: #ffd700;">★</span>
-                    <div class="mu-stat__info">
-                        <strong><?php echo number_format($highest_rating, 1); ?></strong>
-                        <span>Top Rating</span>
-                    </div>
-                </div>
+            </div>
+        </div>
+        <div class="tv-card__info">
+            <h3 class="tv-card__title"><?php echo esc_html($data['title']); ?></h3>
+            <div class="tv-card__meta">
+                <?php if ($data['rating']) : ?>
+                    <span class="tv-card__rating">
+                        <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                        <?php echo esc_html($data['rating']); ?>
+                    </span>
+                    <span class="tv-card__meta-dot"></span>
+                <?php endif; ?>
+                <?php if ($data['year']) : ?>
+                    <span><?php echo esc_html(substr($data['year'], 0, 4)); ?></span>
+                    <span class="tv-card__meta-dot"></span>
+                <?php endif; ?>
+                <?php if ($data['runtime']) : ?>
+                    <span><?php echo esc_html($data['runtime']); ?> min</span>
                 <?php endif; ?>
             </div>
+        </div>
+    </div>
+    <?php
+}
+
+function mu_movie_render_section($title, $query, $watch_base) {
+    if (!$query->have_posts()) {
+        wp_reset_postdata();
+        return;
+    }
+    ?>
+    <section class="tv-section" data-genre="all">
+        <div class="tv-section__header">
+            <h2 class="tv-section__title"><?php echo esc_html($title); ?></h2>
+            <a href="#" class="tv-section__link">
+                View all
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 18l6-6-6-6"/>
+                </svg>
+            </a>
+        </div>
+        <div class="tv-swiper">
+            <div class="tv-swiper__wrapper">
+                <?php
+                while ($query->have_posts()) :
+                    $query->the_post();
+                    mu_movie_render_card(mu_render_movie_card_data(get_the_ID(), $watch_base));
+                endwhile;
+                wp_reset_postdata();
+                ?>
+            </div>
+            <button class="tv-swiper__nav tv-swiper__nav--prev" aria-label="Previous">
+                <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+            </button>
+            <button class="tv-swiper__nav tv-swiper__nav--next" aria-label="Next">
+                <svg viewBox="0 0 24 24"><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>
+            </button>
+        </div>
+    </section>
+    <?php
+}
+?>
+<!DOCTYPE html>
+<html <?php language_attributes(); ?>>
+<head>
+    <meta charset="<?php bloginfo('charset'); ?>">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><?php esc_html_e('Movies', 'astra-child'); ?> - <?php bloginfo('name'); ?></title>
+    <?php wp_head(); ?>
+    <link rel="stylesheet" href="<?php echo esc_url(get_theme_file_uri('assets/css/movie-ui.css')); ?>">
+    <link rel="stylesheet" href="<?php echo esc_url(get_theme_file_uri('assets/css/ms-tv-shows.css')); ?>">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+</head>
+<body class="movie-ui movie-ui--no-sidebar tv-shows-page">
+<?php wp_body_open(); ?>
+
+<div class="tv-page">
+
+    <!-- ============================================================ -->
+    <!-- HERO SECTION -->
+    <!-- ============================================================ -->
+    <?php if (!empty($hero_slides)) : ?>
+    <section class="tv-hero">
+        <div class="tv-hero__slider">
+            <?php foreach ($hero_slides as $i => $slide) : ?>
+            <div class="tv-hero__slide<?php echo $i === 0 ? ' is-active' : ''; ?>" data-index="<?php echo esc_attr($i); ?>">
+                <div class="tv-hero__bg" style="background-image: url('<?php echo esc_url($slide['backdrop']); ?>');"></div>
+                <div class="tv-hero__content">
+                    <div class="tv-hero__badge" style="background:rgba(255,255,255,0.2);">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg>
+                        <?php echo esc_html($slide['quality'] ?: 'Movie'); ?>
+                    </div>
+                    <h1 class="tv-hero__title"><?php echo esc_html($slide['title']); ?></h1>
+                    <div class="tv-hero__meta">
+                        <?php if ($slide['rating']) : ?>
+                            <span class="tv-hero__meta-item tv-hero__meta-item--rating">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="#ffd700"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                                <?php echo esc_html($slide['rating']); ?>
+                            </span>
+                            <span class="tv-hero__meta-dot"></span>
+                        <?php endif; ?>
+                        <?php if ($slide['year']) : ?>
+                            <span class="tv-hero__meta-item"><?php echo esc_html(substr($slide['year'], 0, 4)); ?></span>
+                            <span class="tv-hero__meta-dot"></span>
+                        <?php endif; ?>
+                        <?php if ($slide['runtime']) : ?>
+                            <span class="tv-hero__meta-item"><?php echo esc_html($slide['runtime']); ?> min</span>
+                            <span class="tv-hero__meta-dot"></span>
+                        <?php endif; ?>
+                        <?php if ($slide['age']) : ?>
+                            <span class="tv-hero__age"><?php echo esc_html($slide['age']); ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <?php if (!empty($slide['genres'])) : ?>
+                    <div class="tv-hero__genres">
+                        <?php foreach ($slide['genres'] as $genre) : ?>
+                            <span class="tv-hero__genre"><?php echo esc_html($genre); ?></span>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
+                    <p class="tv-hero__desc"><?php echo esc_html($slide['overview']); ?></p>
+                    <div class="tv-hero__actions">
+                        <a href="<?php echo esc_url($slide['watch_url']); ?>" class="tv-hero__btn tv-hero__btn--primary">
+                            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            Play Now
+                        </a>
+                        <a href="<?php echo esc_url($slide['detail_url']); ?>" class="tv-hero__btn tv-hero__btn--secondary">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="16" x2="12" y2="12"/>
+                                <line x1="12" y1="8" x2="12.01" y2="8"/>
+                            </svg>
+                            More Info
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        
+        <!-- Navigation Dots -->
+        <?php if (count($hero_slides) > 1) : ?>
+        <div class="tv-hero__dots">
+            <?php foreach ($hero_slides as $i => $slide) : ?>
+                <button class="tv-hero__dot<?php echo $i === 0 ? ' is-active' : ''; ?>" data-index="<?php echo esc_attr($i); ?>" aria-label="Go to slide <?php echo esc_attr($i + 1); ?>"></button>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </section>
+    <?php endif; ?>
+
+    <!-- ============================================================ -->
+    <!-- GENRE CHIPS -->
+    <!-- ============================================================ -->
+    <div class="tv-genres">
+        <button class="tv-genre-chip is-active" data-genre="">All</button>
+        <?php foreach ($genre_list as $genre) : ?>
+            <button class="tv-genre-chip" data-genre="<?php echo esc_attr($genre['slug']); ?>">
+                <?php echo esc_html($genre['name']); ?>
+            </button>
+        <?php endforeach; ?>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- CONTENT SECTIONS -->
+    <!-- ============================================================ -->
+    <div class="tv-content">
+        
+        <?php 
+        // Trending Section
+        mu_movie_render_section('Trending Now', $trending_q, $watch_base);
+        ?>
+
+        <?php 
+        // New Releases Section
+        mu_movie_render_section('New Releases', $newrel_q, $watch_base);
+        ?>
+
+        <?php 
+        // Popular Section
+        mu_movie_render_section('Popular Movies', $popular_q, $watch_base);
+        ?>
+
+        <?php 
+        // Top Rated Section
+        mu_movie_render_section('Top Rated', $toprated_q, $watch_base);
+        ?>
+
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- FEATURES SECTION -->
+    <!-- ============================================================ -->
+    <section class="tv-features">
+        <div class="tv-feature">
+            <div class="tv-feature__icon">
+                <svg viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4zm-6.75 11.25L8 12l3.25-3.25L14 12l-2.75 3.25zM16 18H8v-2h8v2z"/></svg>
+            </div>
+            <h3 class="tv-feature__title">Thousands of Movies</h3>
+            <p class="tv-feature__desc">Access an extensive library of movies across all genres</p>
+        </div>
+        <div class="tv-feature">
+            <div class="tv-feature__icon">
+                <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM9 8l7 4-7 4V8z"/></svg>
+            </div>
+            <h3 class="tv-feature__title">4K Ultra HD</h3>
+            <p class="tv-feature__desc">Crystal clear video quality with HDR support</p>
+        </div>
+        <div class="tv-feature">
+            <div class="tv-feature__icon">
+                <svg viewBox="0 0 24 24"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
+            </div>
+            <h3 class="tv-feature__title">Watch Anywhere</h3>
+            <p class="tv-feature__desc">Enjoy on TV, tablet, phone or laptop anytime</p>
+        </div>
+        <div class="tv-feature">
+            <div class="tv-feature__icon">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+            </div>
+            <h3 class="tv-feature__title">No Ads</h3>
+            <p class="tv-feature__desc">Experience uninterrupted viewing without advertisements</p>
         </div>
     </section>
 
-    <?php // =================================================================
-          // MAIN LAYOUT
-          // ================================================================= ?>
-    <div class="mu-movies-layout">
-        
-        <?php // =============================================================
-              // SIDEBAR FILTERS
-              // ============================================================= ?>
-        <aside class="mu-movies-sidebar" id="mu-movies-sidebar">
-            <form method="GET" action="<?php echo esc_url($archive_url); ?>" id="mu-sidebar-form">
-                
-                <div class="mu-sb-header">
-                    <h3>Filters</h3>
-                    <?php if ($is_filtered): ?>
-                    <a href="<?php echo esc_url($archive_url); ?>" class="mu-sb-reset">Reset All</a>
-                    <?php endif; ?>
-                </div>
-                
-                <?php // Hidden fields for existing filters ?>
-                <?php if ($current_page > 1): ?>
-                <input type="hidden" name="paged" value="<?php echo esc_attr($current_page); ?>">
-                <?php endif; ?>
-                
-                <?php // Search ?>
-                <div class="mu-sb-search">
-                    <span class="mu-ico-search"></span>
-                    <input type="text" name="s" placeholder="Search movies, actors..." 
-                           value="<?php echo esc_attr($current_search); ?>" id="mu-sidebar-search">
-                </div>
-                
-                <?php // Active Filters Chips ?>
-                <?php if ($is_filtered): ?>
-                <div class="mu-sb-active-filters" id="mu-active-filters">
-                    <?php foreach ($active_filters as $key => $value): ?>
-                        <?php 
-                        $remove_url = remove_query_arg($key);
-                        $label = ucfirst($key);
-                        if ($key === 'genre' && $current_genre) {
-                            $term = get_term_by('slug', $current_genre, 'genre');
-                            $label = $term ? $term->name : $current_genre;
-                        } elseif ($key === 'country' && $current_country) {
-                            $term = get_term_by('slug', $current_country, 'country');
-                            $label = $term ? $term->name : $current_country;
-                        } elseif ($key === 'year' && $current_year) {
-                            $label = $current_year === 'before_2021' ? 'Before 2021' : $current_year;
-                        } elseif ($key === 'rating' && $current_rating) {
-                            $label = $current_rating . '+ Rating';
-                        }
-                        ?>
-                        <a href="<?php echo esc_url($remove_url); ?>" class="mu-filter-chip">
-                            <?php echo esc_html($label); ?>
-                            <span class="mu-filter-chip__remove">×</span>
-                        </a>
-                    <?php endforeach; ?>
-                </div>
-                <?php endif; ?>
-                
-                <?php // Genres ?>
-                <?php if (!empty($all_genres)): ?>
-                <div class="mu-sb-group">
-                    <h4 class="mu-sb-title" data-mu-toggle="genre">Genre</h4>
-                    <div class="mu-sb-list" id="mu-list-genre">
-                        <?php 
-                        $genre_count = 0;
-                        foreach ($all_genres as $g): 
-                            $genre_count++;
-                            $is_hidden = $genre_count > 8 ? 'style="display:none;" data-mu-hidden="true"' : '';
-                        ?>
-                            <label class="mu-sb-checkbox" <?php echo $is_hidden; ?>>
-                                <input type="radio" name="genre" value="<?php echo esc_attr($g->slug); ?>" 
-                                       <?php checked($current_genre, $g->slug); ?>>
-                                <span class="mu-sb-check"></span>
-                                <span class="mu-sb-label"><?php echo esc_html($g->name); ?></span>
-                                <span class="mu-sb-count"><?php echo esc_html($g->count); ?></span>
-                            </label>
-                        <?php endforeach; ?>
-                        <?php if ($genre_count > 8): ?>
-                            <button type="button" class="mu-sb-more" data-mu-show-more="genre">
-                                Show <?php echo $genre_count - 8; ?> more ▼
-                            </button>
-                        <?php endif; ?>
-                    </div>
-                </div>
-                <?php endif; ?>
-                
-                <?php // Year ?>
-                <div class="mu-sb-group">
-                    <h4 class="mu-sb-title" data-mu-toggle="year">Release Year</h4>
-                    <div class="mu-sb-list" id="mu-list-year">
-                        <?php
-                        $quick_years = array_slice($available_years, 0, 5);
-                        $quick_years[] = 'before_2021';
-                        foreach ($quick_years as $y): 
-                            $label = $y === 'before_2021' ? 'Before 2021' : $y;
-                            $value = $y;
-                        ?>
-                            <label class="mu-sb-checkbox">
-                                <input type="radio" name="year" value="<?php echo esc_attr($value); ?>" 
-                                       <?php checked($current_year, $value); ?>>
-                                <span class="mu-sb-check"></span>
-                                <span class="mu-sb-label"><?php echo esc_html($label); ?></span>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-                
-                <?php // Country ?>
-                <?php if (!empty($all_countries)): ?>
-                <div class="mu-sb-group">
-                    <h4 class="mu-sb-title" data-mu-toggle="country">Country</h4>
-                    <div class="mu-sb-list" id="mu-list-country">
-                        <?php 
-                        $country_count = 0;
-                        foreach ($all_countries as $c): 
-                            $country_count++;
-                            $is_hidden = $country_count > 6 ? 'style="display:none;" data-mu-hidden="true"' : '';
-                        ?>
-                            <label class="mu-sb-checkbox" <?php echo $is_hidden; ?>>
-                                <input type="radio" name="country" value="<?php echo esc_attr($c->slug); ?>" 
-                                       <?php checked($current_country, $c->slug); ?>>
-                                <span class="mu-sb-check"></span>
-                                <span class="mu-sb-label"><?php echo esc_html($c->name); ?></span>
-                                <span class="mu-sb-count"><?php echo esc_html($c->count); ?></span>
-                            </label>
-                        <?php endforeach; ?>
-                        <?php if ($country_count > 6): ?>
-                            <button type="button" class="mu-sb-more" data-mu-show-more="country">
-                                Show <?php echo $country_count - 6; ?> more ▼
-                            </button>
-                        <?php endif; ?>
-                    </div>
-                </div>
-                <?php endif; ?>
-                
-                <?php // Rating ?>
-                <div class="mu-sb-group">
-                    <h4 class="mu-sb-title" data-mu-toggle="rating">Rating</h4>
-                    <div class="mu-sb-list" id="mu-list-rating">
-                        <?php foreach ([9, 8, 7, 6] as $r): ?>
-                            <label class="mu-sb-checkbox">
-                                <input type="radio" name="rating" value="<?php echo esc_attr($r); ?>" 
-                                       <?php checked($current_rating, $r); ?>>
-                                <span class="mu-sb-check"></span>
-                                <span class="mu-sb-label">
-                                    <?php for ($i = 0; $i < floor($r / 2); $i++): ?>★<?php endfor; ?>
-                                    <?php echo esc_html($r); ?>+
-                                </span>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-                
-                <?php // Quality ?>
-                <div class="mu-sb-group">
-                    <h4 class="mu-sb-title" data-mu-toggle="quality">Quality</h4>
-                    <div class="mu-sb-list" id="mu-list-quality">
-                        <?php foreach (['4K', 'Full HD', 'HD', 'CAM'] as $q): ?>
-                            <label class="mu-sb-checkbox">
-                                <input type="radio" name="quality" value="<?php echo esc_attr($q); ?>" 
-                                       <?php checked($current_quality, $q); ?>>
-                                <span class="mu-sb-check"></span>
-                                <span class="mu-sb-label"><?php echo esc_html($q); ?></span>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-                
-                <?php // Type ?>
-                <?php if (!empty($all_types)): ?>
-                <div class="mu-sb-group">
-                    <h4 class="mu-sb-title" data-mu-toggle="type">Type</h4>
-                    <div class="mu-sb-list" id="mu-list-type">
-                        <?php foreach ($all_types as $t): ?>
-                            <label class="mu-sb-checkbox">
-                                <input type="radio" name="type" value="<?php echo esc_attr($t->slug); ?>" 
-                                       <?php checked($current_type, $t->slug); ?>>
-                                <span class="mu-sb-check"></span>
-                                <span class="mu-sb-label"><?php echo esc_html($t->name); ?></span>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-                <?php endif; ?>
-                
-            </form>
-        </aside>
-        
-        <?php // =============================================================
-              // MOBILE FILTER DRAWER
-              // ============================================================= ?>
-        <div class="mu-filter-drawer" id="mu-filter-drawer">
-            <div class="mu-filter-drawer__backdrop" id="mu-filter-close"></div>
-            <div class="mu-filter-drawer__panel">
-                <div class="mu-filter-drawer__header">
-                    <h3 class="mu-filter-drawer__title">Filters</h3>
-                    <button type="button" class="mu-filter-drawer__close" id="mu-filter-drawer-close">×</button>
-                </div>
-                <div id="mu-mobile-filters"></div>
-                <button type="button" class="mu-filter-drawer__apply" id="mu-filter-apply">
-                    Apply Filters
-                </button>
-            </div>
-        </div>
-
-        <?php // =============================================================
-              // MAIN CONTENT
-              // ============================================================= ?>
-        <main class="mu-movies-main">
-            
-            <?php // Topbar Controls ?>
-            <div class="mu-movies-topbar">
-                <span class="mu-topbar-count">
-                    <strong><?php echo number_format($movies_query->found_posts); ?></strong> 
-                    <?php echo _n('Movie', 'Movies', $movies_query->found_posts, 'astra-child'); ?> Found
-                </span>
-                
-                <?php // Mobile Filter Toggle ?>
-                <button type="button" class="mu-filter-toggle-btn" id="mu-filter-toggle">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-                    </svg>
-                    Filters
-                    <?php if ($is_filtered): ?>
-                        <span style="background:var(--mu-accent);color:#fff;padding:2px 6px;border-radius:10px;font-size:11px;">
-                            <?php echo count($active_filters); ?>
-                        </span>
-                    <?php endif; ?>
-                </button>
-                
-                <select name="sort" class="mu-topbar-select" id="mu-sort-select">
-                    <option value="latest" <?php selected($current_sort, 'latest'); ?>>Latest</option>
-                    <option value="popular" <?php selected($current_sort, 'popular'); ?>>Most Popular</option>
-                    <option value="top_rated" <?php selected($current_sort, 'top_rated'); ?>>Highest Rated</option>
-                    <option value="oldest" <?php selected($current_sort, 'oldest'); ?>>Oldest</option>
-                    <option value="a_z" <?php selected($current_sort, 'a_z'); ?>>A - Z</option>
-                    <option value="z_a" <?php selected($current_sort, 'z_a'); ?>>Z - A</option>
-                </select>
-                
-                <div class="mu-view-toggle">
-                    <button type="button" class="is-active" data-view="grid" title="Grid View">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-                            <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-                        </svg>
-                    </button>
-                    <button type="button" data-view="list" title="List View">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
-                            <line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/>
-                            <line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            
-            <?php // Content Area ?>
-            <div class="mu-movies-content-area" id="mu-movies-content">
-                
-                <?php if ($movies_query->have_posts()): ?>
-                    
-                    <div class="mu-movies-grid" id="mu-movies-grid" data-view="grid">
-                        <?php while ($movies_query->have_posts()): $movies_query->the_post(); ?>
-                            <?php 
-                            $post_id = get_the_ID();
-                            $title = get_the_title($post_id);
-                            $year = movie_ui_meta($post_id, ['year', '_release_year'], '');
-                            $rating = movie_ui_meta($post_id, ['rating', '_rating'], '');
-                            $quality = movie_ui_meta($post_id, ['quality', '_quality'], 'HD');
-                            $trailer = movie_ui_meta($post_id, ['trailer_url', '_trailer_url'], '');
-                            $video_url = movie_ui_meta($post_id, ['video_url', '_video_url'], '');
-                            $poster = get_the_post_thumbnail_url($post_id, 'medium');
-                            $url = get_permalink($post_id);
-                            $ptype = get_post_type($post_id);
-                            
-                            $play_action = 'unavailable';
-                            if ($trailer) {
-                                $play_action = 'trailer:' . esc_attr($trailer);
-                            } elseif ($video_url) {
-                                $play_action = 'watch:' . esc_url($url);
-                            }
-                            ?>
-                            <article class="mu-grid-card"
-                                     data-id="<?php echo esc_attr($post_id); ?>"
-                                     data-url="<?php echo esc_url($url); ?>"
-                                     data-title="<?php echo esc_attr($title); ?>"
-                                     data-trailer="<?php echo esc_attr($trailer); ?>"
-                                     data-play-action="<?php echo esc_attr($play_action); ?>"
-                                     itemscope itemtype="https://schema.org/Movie">
-                                
-                                <a href="<?php echo esc_url($url); ?>" class="mu-grid-card__poster">
-                                    <?php if ($poster): ?>
-                                        <img src="<?php echo esc_url($poster); ?>" 
-                                             alt="<?php echo esc_attr($title); ?>"
-                                             loading="lazy" decoding="async">
-                                    <?php else: ?>
-                                        <div style="width:100%;height:100%;background:var(--mu-bg-2);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.3);">
-                                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>
-                                        </div>
-                                    <?php endif; ?>
-                                    
-                                    <div class="mu-grid-card__overlay">
-                                        <button type="button" class="mu-grid-card__play-btn" data-mu-card-play>
-                                            <svg viewBox="0 0 24 24" fill="#111"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                                        </button>
-                                    </div>
-                                    
-                                    <div class="mu-grid-card__badges">
-                                        <span class="mu-badge mu-badge--type">
-                                            <?php echo $ptype === 'tv_show' ? 'TV' : 'Movie'; ?>
-                                        </span>
-                                        <?php if ($quality): ?>
-                                        <span class="mu-badge mu-badge--quality"><?php echo esc_html($quality); ?></span>
-                                        <?php endif; ?>
-                                    </div>
-                                    
-                                    <?php if ($rating): ?>
-                                    <span class="mu-badge mu-badge--rating" style="position:absolute;bottom:8px;left:8px;">
-                                        ★ <?php echo esc_html($rating); ?>
-                                    </span>
-                                    <?php endif; ?>
-                                </a>
-                                
-                                <div class="mu-grid-card__info">
-                                    <h3 class="mu-grid-card__title"><?php echo esc_html($title); ?></h3>
-                                    <div class="mu-grid-card__meta">
-                                        <?php if ($year): ?>
-                                        <span class="mu-grid-card__meta-item"><?php echo esc_html($year); ?></span>
-                                        <?php endif; ?>
-                                        <button type="button" class="mu-grid-card__fav-btn" data-mu-fav-toggle data-id="<?php echo esc_attr($post_id); ?>" title="Add to My List">
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-                            </article>
-                        <?php endwhile; ?>
-                    </div>
-                    
-                    <?php // Pagination ?>
-                    <?php if ($movies_query->max_num_pages > 1): ?>
-                    <div class="mu-movies-pagination">
-                        <?php
-                        $big = 999999999;
-                        $pagination_args = [
-                            'base'    => str_replace($big, '%#%', esc_url(get_pagenum_link($big))),
-                            'format'  => '?paged=%#%',
-                            'current' => $current_page,
-                            'total'   => $movies_query->max_num_pages,
-                            'show_all' => false,
-                            'mid_size' => 2,
-                            'end_size'  => 1,
-                            'prev_text' => '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>',
-                            'next_text' => '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>',
-                        ];
-                        
-                        echo '<div class="mu-pagination-btn mu-pagination-btn--prev">' . get_previous_posts_link($pagination_args['prev_text']) . '</div>';
-                        
-                        for ($i = 1; $i <= $movies_query->max_num_pages; $i++) {
-                            $active = $i === $current_page ? ' is-current' : '';
-                            if (
-                                $i === 1 || 
-                                $i === $movies_query->max_num_pages || 
-                                ($i >= $current_page - 1 && $i <= $current_page + 1)
-                            ) {
-                                echo '<a href="' . esc_url(get_pagenum_link($i)) . '" class="mu-pagination-btn' . $active . '">' . $i . '</a>';
-                            } elseif ($i === $current_page - 2 || $i === $current_page + 2) {
-                                echo '<span class="mu-pagination-btn">...</span>';
-                            }
-                        }
-                        
-                        echo '<div class="mu-pagination-btn mu-pagination-btn--next">' . get_next_posts_link($pagination_args['next_text'], $movies_query->max_num_pages) . '</div>';
-                        ?>
-                    </div>
-                    <?php endif; ?>
-                    
-                <?php else: ?>
-                    
-                    <?php // Empty State ?>
-                    <div class="mu-movies-empty">
-                        <div class="mu-movies-empty__icon">🎬</div>
-                        <h2 class="mu-movies-empty__title">No movies found</h2>
-                        <p class="mu-movies-empty__desc">
-                            <?php if ($is_filtered): ?>
-                                We couldn't find any movies matching your filters. Try adjusting your search criteria.
-                            <?php else: ?>
-                                There are no movies available yet. Import some movies to get started.
-                            <?php endif; ?>
-                        </p>
-                        <div class="mu-movies-empty__actions">
-                            <?php if ($is_filtered): ?>
-                                <a href="<?php echo esc_url($archive_url); ?>" class="mu-empty-btn mu-empty-btn--primary">
-                                    Reset Filters
-                                </a>
-                            <?php endif; ?>
-                            <a href="<?php echo esc_url(home_url('/trending')); ?>" class="mu-empty-btn mu-empty-btn--secondary">
-                                Explore Trending
-                            </a>
-                        </div>
-                    </div>
-                    
-                <?php endif; ?>
-                
-            </div>
-        </main>
-        
-    </div>
-
-    <?php // =================================================================
-          // FOOTER FEATURE STRIP
-          // ================================================================= ?>
-    <footer class="mu-movies-footer">
-        <div class="mu-movies-footer__inner">
-            <div class="mu-movies-footer__grid">
-                <div class="mu-movies-footer__item">
-                    <div class="mu-movies-footer__icon">🎬</div>
-                    <h4 class="mu-movies-footer__title">Thousands of Movies</h4>
-                    <p class="mu-movies-footer__desc">Access an extensive library of movies across all genres.</p>
-                </div>
-                <div class="mu-movies-footer__item">
-                    <div class="mu-movies-footer__icon">📺</div>
-                    <h4 class="mu-movies-footer__title">High Quality</h4>
-                    <p class="mu-movies-footer__desc">Enjoy 4K Ultra HD streaming with crystal clear quality.</p>
-                </div>
-                <div class="mu-movies-footer__item">
-                    <div class="mu-movies-footer__icon">📱</div>
-                    <h4 class="mu-movies-footer__title">Watch Everywhere</h4>
-                    <p class="mu-movies-footer__desc">Stream on any device, anytime, anywhere.</p>
-                </div>
-                <div class="mu-movies-footer__item">
-                    <div class="mu-movies-footer__icon">🚫</div>
-                    <h4 class="mu-movies-footer__title">No Ads</h4>
-                    <p class="mu-movies-footer__desc">Experience uninterrupted viewing without advertisements.</p>
-                </div>
-            </div>
-        </div>
-    </footer>
-
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Filter toggle (collapse/expand)
-    document.querySelectorAll('.mu-sb-title[data-mu-toggle]').forEach(function(title) {
-        title.addEventListener('click', function() {
-            var target = this.getAttribute('data-mu-toggle');
-            var list = document.getElementById('mu-list-' + target);
-            if (list) {
-                list.classList.toggle('is-collapsed');
-                this.classList.toggle('is-collapsed');
-            }
-        });
-    });
-    
-    // Show more toggle
-    document.querySelectorAll('.mu-sb-more[data-mu-show-more]').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var target = this.getAttribute('data-mu-show-more');
-            var list = document.getElementById('mu-list-' + target);
-            if (list) {
-                list.querySelectorAll('[data-mu-hidden]').forEach(function(item) {
-                    item.style.display = '';
-                    item.removeAttribute('data-mu-hidden');
-                });
-                this.style.display = 'none';
-            }
-        });
-    });
-    
-    // Auto-submit sidebar form on radio change
-    document.querySelectorAll('#mu-sidebar-form input[type="radio"]').forEach(function(input) {
-        input.addEventListener('change', function() {
-            document.getElementById('mu-sidebar-form').submit();
-        });
-    });
-    
-    // Sort select change
-    document.getElementById('mu-sort-select').addEventListener('change', function() {
-        var form = document.getElementById('mu-sidebar-form');
-        var sortInput = form.querySelector('input[name="sort"]');
-        if (!sortInput) {
-            sortInput = document.createElement('input');
-            sortInput.type = 'hidden';
-            sortInput.name = 'sort';
-            form.appendChild(sortInput);
-        }
-        sortInput.value = this.value;
-        form.submit();
-    });
-    
-    // Grid/List view toggle
-    document.querySelectorAll('.mu-view-toggle button').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var view = this.getAttribute('data-view');
-            document.querySelectorAll('.mu-view-toggle button').forEach(function(b) {
-                b.classList.remove('is-active');
-            });
-            this.classList.add('is-active');
-            
-            var grid = document.getElementById('mu-movies-grid');
-            if (grid) {
-                grid.setAttribute('data-view', view);
-            }
-        });
-    });
-    
-    // Mobile filter drawer
-    var filterToggle = document.getElementById('mu-filter-toggle');
-    var filterDrawer = document.getElementById('mu-filter-drawer');
-    var filterClose = document.getElementById('mu-filter-close');
-    var filterDrawerClose = document.getElementById('mu-filter-drawer-close');
-    var filterApply = document.getElementById('mu-filter-apply');
-    var mobileFilters = document.getElementById('mu-mobile-filters');
-    var sidebarForm = document.getElementById('mu-sidebar-form');
-    
-    if (filterToggle && filterDrawer) {
-        // Clone sidebar content to mobile drawer
-        if (mobileFilters && sidebarForm) {
-            mobileFilters.innerHTML = sidebarForm.innerHTML;
-        }
-        
-        filterToggle.addEventListener('click', function() {
-            filterDrawer.classList.add('is-open');
-            document.body.style.overflow = 'hidden';
-        });
-        
-        function closeDrawer() {
-            filterDrawer.classList.remove('is-open');
-            document.body.style.overflow = '';
-        }
-        
-        if (filterClose) filterClose.addEventListener('click', closeDrawer);
-        if (filterDrawerClose) filterDrawerClose.addEventListener('click', closeDrawer);
-        
-        if (filterApply) {
-            filterApply.addEventListener('click', function() {
-                // Submit the mobile form
-                var mobileForm = mobileFilters.querySelector('form') || mobileFilters.querySelector('#mu-sidebar-form');
-                if (mobileForm) {
-                    mobileForm.submit();
-                }
-                closeDrawer();
-            });
-        }
-        
-        // Handle checkbox changes in mobile
-        mobileFilters.querySelectorAll('input[type="radio"]').forEach(function(input) {
-            input.addEventListener('change', function() {
-                // Visual feedback - update checked state
-            });
-        });
-    }
-    
-    // Card interactions
-    document.querySelectorAll('.mu-grid-card').forEach(function(card) {
-        card.addEventListener('click', function(e) {
-            // Don't navigate if clicking play button or favorite
-            if (e.target.closest('[data-mu-card-play]') || e.target.closest('[data-mu-fav-toggle]')) {
-                return;
-            }
-        });
-    });
-});
-</script>
-
-<?php 
-wp_reset_postdata();
-get_footer(); 
+<?php wp_footer(); ?>
+<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+<script src="<?php echo esc_url(get_theme_file_uri('assets/js/ms-tv-shows.js')); ?>"></script>
+</body>
+</html>

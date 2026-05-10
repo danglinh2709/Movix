@@ -1,0 +1,1027 @@
+/**
+ * ============================================================
+ * Premium OTT VIP Pricing Page CSS
+ * Premium streaming pricing page with dark cinematic theme
+ * ============================================================
+ */
+
+/* ============================================================
+   CSS VARIABLES
+   ============================================================ */
+:root {
+  --pricing-bg: #000000;
+  --pricing-dark: #0a0a0a;
+  --pricing-surface: #141414;
+  --pricing-surface-hover: #1e1e1e;
+  --pricing-accent: #e50914;
+  --pricing-accent-hover: #ff1a25;
+  --pricing-gold: #ffd700;
+  --pricing-gold-dark: #b8860b;
+  --pricing-text: #ffffff;
+  --pricing-text-secondary: rgba(255, 255, 255, 0.7);
+  --pricing-text-muted: rgba(255, 255, 255, 0.5);
+  --pricing-border: rgba(255, 255, 255, 0.1);
+  --pricing-radius: 16px;
+  --pricing-transition: 0.3s ease;
+}
+
+/* ============================================================
+   BASE LAYOUT
+   ============================================================ */
+.mu-pricing-page {
+  background: var(--pricing-bg);
+  min-height: 100vh;
+  color: var(--pricing-text);
+  overflow-x: hidden;
+}
+
+.mu-pricing-page * {
+  box-sizing: border-box;
+}
+
+/* ============================================================
+   HERO SECTION
+   ============================================================ */
+.mu-pricing-hero {
+  text-align: center;
+  padding: 80px 20px 60px;
+  background: linear-gradient(180deg, rgba(229, 9, 20, 0.08) 0%, transparent 100%);
+}
+
+.mu-pricing-hero-icon {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 24px;
+  background: linear-gradient(135deg, var(--pricing-gold) 0%, var(--pricing-gold-dark) 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 32px rgba(255, 215, 0, 0.3);
+}
+
+.mu-pricing-hero-icon svg {
+  width: 36px;
+  height: 36px;
+  fill: #000;
+}
+
+.mu-pricing-hero-title {
+  font-size: clamp(32px, 5vw, 48px);
+  font-weight: 800;
+  color: var(--pricing-text);
+  margin: 0 0 16px;
+  line-height: 1.1;
+}
+
+.mu-pricing-hero-subtitle {
+  font-size: 18px;
+  color: var(--pricing-text-secondary);
+  margin: 0 0 40px;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Feature highlights */
+.mu-pricing-features {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  flex-wrap: wrap;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.mu-pricing-feature {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--pricing-surface);
+  border-radius: 50px;
+  transition: all 0.2s ease;
+  cursor: default;
+}
+
+.mu-pricing-feature:hover {
+  background: var(--pricing-surface-hover);
+  transform: translateY(-2px);
+}
+
+.mu-pricing-feature-icon {
+  width: 32px;
+  height: 32px;
+  background: rgba(229, 9, 20, 0.15);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mu-pricing-feature-icon svg {
+  width: 16px;
+  height: 16px;
+  stroke: var(--pricing-accent);
+  fill: none;
+}
+
+.mu-pricing-feature-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--pricing-text);
+}
+
+/* ============================================================
+   BILLING TOGGLE
+   ============================================================ */
+.mu-pricing-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 48px;
+}
+
+.mu-pricing-toggle-label {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--pricing-text-secondary);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.mu-pricing-toggle-label.is-active {
+  color: var(--pricing-text);
+}
+
+.mu-pricing-toggle-switch {
+  position: relative;
+  width: 56px;
+  height: 28px;
+  background: var(--pricing-surface);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border: 1px solid var(--pricing-border);
+}
+
+.mu-pricing-toggle-switch.is-active {
+  background: var(--pricing-accent);
+  border-color: var(--pricing-accent);
+}
+
+.mu-pricing-toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.mu-pricing-toggle-switch.is-active .mu-pricing-toggle-knob {
+  transform: translateX(28px);
+}
+
+.mu-pricing-toggle-badge {
+  padding: 6px 12px;
+  background: linear-gradient(135deg, var(--pricing-gold) 0%, var(--pricing-gold-dark) 100%);
+  color: #000;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 20px;
+  text-transform: uppercase;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.3s ease;
+}
+
+.mu-pricing-toggle-badge.is-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* ============================================================
+   PRICING CARDS
+   ============================================================ */
+.mu-pricing-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.mu-pricing-card {
+  position: relative;
+  background: var(--pricing-surface);
+  border: 1px solid var(--pricing-border);
+  border-radius: var(--pricing-radius);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+.mu-pricing-card:hover {
+  transform: translateY(-8px);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+/* Standard - Most Popular */
+.mu-pricing-card--standard {
+  border-color: var(--pricing-accent);
+  background: linear-gradient(180deg, rgba(229, 9, 20, 0.1) 0%, var(--pricing-surface) 100%);
+  transform: scale(1.05);
+  z-index: 1;
+}
+
+.mu-pricing-card--standard:hover {
+  transform: scale(1.05) translateY(-8px);
+}
+
+/* Premium - Gold */
+.mu-pricing-card--premium {
+  border-color: var(--pricing-gold);
+  background: linear-gradient(180deg, rgba(255, 215, 0, 0.08) 0%, var(--pricing-surface) 100%);
+}
+
+.mu-pricing-card--premium:hover {
+  border-color: var(--pricing-gold);
+  box-shadow: 0 20px 60px rgba(255, 215, 0, 0.15);
+}
+
+/* Badge */
+.mu-pricing-card-badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 20px;
+  background: var(--pricing-accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.mu-pricing-card--premium .mu-pricing-card-badge {
+  background: linear-gradient(135deg, var(--pricing-gold) 0%, var(--pricing-gold-dark) 100%);
+  color: #000;
+}
+
+/* Plan name */
+.mu-pricing-card-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--pricing-text);
+  margin: 0 0 8px;
+}
+
+.mu-pricing-card-desc {
+  font-size: 13px;
+  color: var(--pricing-text-muted);
+  margin: 0 0 24px;
+  min-height: 36px;
+}
+
+/* Price */
+.mu-pricing-card-price {
+  margin-bottom: 24px;
+}
+
+.mu-pricing-card-price-main {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.mu-pricing-card-currency {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--pricing-text);
+}
+
+.mu-pricing-card-amount {
+  font-size: 48px;
+  font-weight: 800;
+  color: var(--pricing-text);
+  line-height: 1;
+}
+
+.mu-pricing-card-period {
+  font-size: 16px;
+  color: var(--pricing-text-muted);
+}
+
+.mu-pricing-card-annual {
+  font-size: 13px;
+  color: var(--pricing-text-muted);
+  margin-top: 4px;
+}
+
+.mu-pricing-card-annual strong {
+  color: var(--pricing-gold);
+}
+
+/* Features list */
+.mu-pricing-card-features {
+  list-style: none;
+  margin: 0 0 32px;
+  padding: 0;
+  flex: 1;
+}
+
+.mu-pricing-card-feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 0;
+  font-size: 14px;
+  color: var(--pricing-text-secondary);
+  border-bottom: 1px solid var(--pricing-border);
+}
+
+.mu-pricing-card-feature:last-child {
+  border-bottom: none;
+}
+
+.mu-pricing-card-feature-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.mu-pricing-card-feature-icon--check {
+  stroke: #4caf50;
+}
+
+.mu-pricing-card-feature-icon--cross {
+  stroke: var(--pricing-text-muted);
+}
+
+.mu-pricing-card-feature--disabled {
+  color: var(--pricing-text-muted);
+}
+
+/* CTA Button */
+.mu-pricing-card-btn {
+  width: 100%;
+  padding: 14px 24px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  text-align: center;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.mu-pricing-card-btn--outline {
+  background: transparent;
+  color: var(--pricing-text);
+  border: 1px solid var(--pricing-border);
+}
+
+.mu-pricing-card-btn--outline:hover {
+  background: var(--pricing-surface-hover);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.mu-pricing-card-btn--primary {
+  background: var(--pricing-accent);
+  color: #fff;
+}
+
+.mu-pricing-card-btn--primary:hover {
+  background: var(--pricing-accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(229, 9, 20, 0.4);
+}
+
+.mu-pricing-card-btn--gold {
+  background: linear-gradient(135deg, var(--pricing-gold) 0%, var(--pricing-gold-dark) 100%);
+  color: #000;
+}
+
+.mu-pricing-card-btn--gold:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(255, 215, 0, 0.4);
+}
+
+.mu-pricing-card-btn--selected {
+  opacity: 0.7;
+  cursor: default;
+}
+
+/* ============================================================
+   SECURE PAYMENT BANNER
+   ============================================================ */
+.mu-pricing-secure {
+  max-width: 1100px;
+  margin: 60px auto 0;
+  padding: 24px 32px;
+  background: var(--pricing-surface);
+  border: 1px solid var(--pricing-border);
+  border-radius: var(--pricing-radius);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.mu-pricing-secure-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.mu-pricing-secure-icon {
+  width: 48px;
+  height: 48px;
+  background: rgba(76, 175, 80, 0.15);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mu-pricing-secure-icon svg {
+  width: 24px;
+  height: 24px;
+  stroke: #4caf50;
+  fill: none;
+}
+
+.mu-pricing-secure-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pricing-text);
+  margin: 0 0 4px;
+}
+
+.mu-pricing-secure-desc {
+  font-size: 13px;
+  color: var(--pricing-text-muted);
+  margin: 0;
+}
+
+.mu-pricing-secure-logos {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.mu-pricing-secure-logo {
+  width: 50px;
+  height: 32px;
+  background: #fff;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  position: relative;
+}
+
+.mu-pricing-secure-logo:hover {
+  transform: scale(1.1);
+}
+
+.mu-pricing-secure-logo img {
+  max-width: 40px;
+  max-height: 24px;
+  object-fit: contain;
+}
+
+.mu-pricing-secure-logo-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #000;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  margin-bottom: 8px;
+}
+
+.mu-pricing-secure-logo:hover .mu-pricing-secure-logo-tooltip {
+  opacity: 1;
+}
+
+/* ============================================================
+   COMPARE TABLE
+   ============================================================ */
+.mu-pricing-compare {
+  max-width: 1100px;
+  margin: 60px auto;
+  padding: 0 20px;
+}
+
+.mu-pricing-compare-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--pricing-text);
+  margin: 0 0 24px;
+  text-align: center;
+}
+
+.mu-pricing-compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--pricing-surface);
+  border-radius: var(--pricing-radius);
+  overflow: hidden;
+}
+
+.mu-pricing-compare-table th,
+.mu-pricing-compare-table td {
+  padding: 16px 20px;
+  text-align: center;
+  border-bottom: 1px solid var(--pricing-border);
+}
+
+.mu-pricing-compare-table th {
+  background: var(--pricing-dark);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--pricing-text);
+}
+
+.mu-pricing-compare-table th:first-child {
+  text-align: left;
+}
+
+.mu-pricing-compare-table td:first-child {
+  text-align: left;
+  font-size: 14px;
+  color: var(--pricing-text-secondary);
+}
+
+.mu-pricing-compare-table tr:last-child td {
+  border-bottom: none;
+}
+
+.mu-pricing-compare-table tr:hover td {
+  background: var(--pricing-surface-hover);
+}
+
+.mu-pricing-compare-popular {
+  color: var(--pricing-accent);
+  font-weight: 700;
+}
+
+.mu-pricing-compare-check {
+  width: 20px;
+  height: 20px;
+  stroke: #4caf50;
+}
+
+.mu-pricing-compare-cross {
+  width: 20px;
+  height: 20px;
+  stroke: var(--pricing-text-muted);
+}
+
+.mu-pricing-compare-highlight {
+  background: rgba(255, 215, 0, 0.05);
+}
+
+.mu-pricing-compare-highlight th {
+  color: var(--pricing-gold);
+}
+
+/* ============================================================
+   FAQ ACCORDION
+   ============================================================ */
+.mu-pricing-faq {
+  max-width: 800px;
+  margin: 0 auto 80px;
+  padding: 0 20px;
+}
+
+.mu-pricing-faq-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--pricing-text);
+  margin: 0 0 32px;
+  text-align: center;
+}
+
+.mu-pricing-faq-item {
+  background: var(--pricing-surface);
+  border: 1px solid var(--pricing-border);
+  border-radius: 12px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.mu-pricing-faq-item.is-open {
+  border-color: var(--pricing-accent);
+}
+
+.mu-pricing-faq-question {
+  width: 100%;
+  padding: 20px 24px;
+  background: none;
+  border: none;
+  color: var(--pricing-text);
+  font-size: 16px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  transition: color 0.2s;
+}
+
+.mu-pricing-faq-question:hover {
+  color: var(--pricing-accent);
+}
+
+.mu-pricing-faq-icon {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  flex-shrink: 0;
+  transition: transform 0.3s ease;
+}
+
+.mu-pricing-faq-item.is-open .mu-pricing-faq-icon {
+  transform: rotate(180deg);
+}
+
+.mu-pricing-faq-answer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.mu-pricing-faq-item.is-open .mu-pricing-faq-answer {
+  max-height: 300px;
+}
+
+.mu-pricing-faq-answer-inner {
+  padding: 0 24px 20px;
+  font-size: 14px;
+  color: var(--pricing-text-secondary);
+  line-height: 1.7;
+}
+
+/* ============================================================
+   FOOTER NOTE
+   ============================================================ */
+.mu-pricing-footer-note {
+  text-align: center;
+  padding: 0 20px 60px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.mu-pricing-footer-note p {
+  font-size: 14px;
+  color: var(--pricing-text-muted);
+  margin: 0 0 8px;
+}
+
+.mu-pricing-footer-note p svg {
+  width: 16px;
+  height: 16px;
+  stroke: #4caf50;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+/* ============================================================
+   CHECKOUT MODAL
+   ============================================================ */
+.mu-pricing-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.mu-pricing-modal.is-open {
+  display: flex;
+}
+
+.mu-pricing-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+}
+
+.mu-pricing-modal-content {
+  position: relative;
+  background: var(--pricing-surface);
+  border-radius: 16px;
+  padding: 40px;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.mu-pricing-modal-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(229, 9, 20, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+}
+
+.mu-pricing-modal-icon svg {
+  width: 36px;
+  height: 36px;
+  stroke: var(--pricing-accent);
+  fill: none;
+}
+
+.mu-pricing-modal-icon--success {
+  background: rgba(76, 175, 80, 0.15);
+}
+
+.mu-pricing-modal-icon--success svg {
+  stroke: #4caf50;
+}
+
+.mu-pricing-modal-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--pricing-text);
+  margin: 0 0 12px;
+}
+
+.mu-pricing-modal-desc {
+  font-size: 15px;
+  color: var(--pricing-text-secondary);
+  margin: 0 0 24px;
+  line-height: 1.6;
+}
+
+.mu-pricing-modal-plan {
+  background: var(--pricing-dark);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mu-pricing-modal-plan-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--pricing-text);
+}
+
+.mu-pricing-modal-plan-price {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--pricing-accent);
+}
+
+.mu-pricing-modal-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.mu-pricing-modal-btn {
+  flex: 1;
+  padding: 14px 20px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.mu-pricing-modal-btn--cancel {
+  background: var(--pricing-dark);
+  color: var(--pricing-text);
+}
+
+.mu-pricing-modal-btn--cancel:hover {
+  background: var(--pricing-surface-hover);
+}
+
+.mu-pricing-modal-btn--confirm {
+  background: var(--pricing-accent);
+  color: #fff;
+}
+
+.mu-pricing-modal-btn--confirm:hover {
+  background: var(--pricing-accent-hover);
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 1024px) {
+  .mu-pricing-cards {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    padding: 0 16px;
+  }
+
+  .mu-pricing-card {
+    padding: 24px;
+  }
+
+  .mu-pricing-card--standard {
+    transform: scale(1);
+  }
+
+  .mu-pricing-card--standard:hover {
+    transform: translateY(-8px);
+  }
+
+  .mu-pricing-card-amount {
+    font-size: 40px;
+  }
+
+  .mu-pricing-secure {
+    flex-direction: column;
+    text-align: center;
+    padding: 24px;
+  }
+
+  .mu-pricing-secure-info {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 768px) {
+  .mu-pricing-hero {
+    padding: 60px 16px 40px;
+  }
+
+  .mu-pricing-hero-icon {
+    width: 60px;
+    height: 60px;
+  }
+
+  .mu-pricing-hero-icon svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  .mu-pricing-hero-title {
+    font-size: 28px;
+  }
+
+  .mu-pricing-hero-subtitle {
+    font-size: 16px;
+  }
+
+  .mu-pricing-features {
+    gap: 12px;
+  }
+
+  .mu-pricing-feature {
+    padding: 10px 16px;
+  }
+
+  .mu-pricing-feature-text {
+    font-size: 13px;
+  }
+
+  .mu-pricing-cards {
+    grid-template-columns: 1fr;
+    max-width: 400px;
+  }
+
+  .mu-pricing-card-amount {
+    font-size: 48px;
+  }
+
+  .mu-pricing-secure-logos {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .mu-pricing-compare-table {
+    font-size: 12px;
+  }
+
+  .mu-pricing-compare-table th,
+  .mu-pricing-compare-table td {
+    padding: 12px 10px;
+  }
+
+  .mu-pricing-faq-question {
+    font-size: 15px;
+    padding: 16px 20px;
+  }
+
+  .mu-pricing-faq-answer-inner {
+    font-size: 13px;
+    padding: 0 20px 16px;
+  }
+
+  .mu-pricing-modal-content {
+    padding: 32px 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mu-pricing-hero {
+    padding: 40px 16px 32px;
+  }
+
+  .mu-pricing-hero-icon {
+    width: 52px;
+    height: 52px;
+  }
+
+  .mu-pricing-hero-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .mu-pricing-hero-title {
+    font-size: 24px;
+  }
+
+  .mu-pricing-toggle {
+    flex-wrap: wrap;
+  }
+
+  .mu-pricing-toggle-badge {
+    width: 100%;
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  .mu-pricing-card {
+    padding: 24px;
+  }
+
+  .mu-pricing-card-features {
+    font-size: 13px;
+  }
+
+  .mu-pricing-card-btn {
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+
+  .mu-pricing-compare {
+    overflow-x: auto;
+  }
+
+  .mu-pricing-compare-table {
+    min-width: 500px;
+  }
+
+  .mu-pricing-modal-content {
+    padding: 24px 20px;
+    margin: 0 10px;
+  }
+
+  .mu-pricing-modal-actions {
+    flex-direction: column;
+  }
+}

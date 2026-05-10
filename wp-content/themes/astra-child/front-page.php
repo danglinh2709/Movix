@@ -47,13 +47,8 @@ if ($hero_q->have_posts()) {
         $watch_url = add_query_arg('id', $hid, $watch_base);
         $detail_url = get_permalink($hid);
 
-        // Determine play action: trailer first, then video, then none
-        $play_action = '';
-        if ($trailer_url) {
-            $play_action = 'trailer:' . esc_attr($trailer_url);
-        } elseif ($video_url) {
-            $play_action = 'watch:' . esc_url($watch_url);
-        }
+        // Play action: Watch page URL (ALWAYS - never fallback to trailer)
+        $play_action = 'watch:' . esc_url($watch_url);
 
         $hero_slides[] = [
             'id' => $hid,
@@ -503,7 +498,6 @@ $feature_items = [
                 <div class="mu-row-inner">
                     <div class="mu-row__head">
                         <div class="mu-row__head-left">
-                            <span class="mu-row__movies-icon">🎬</span>
                             <h2 class="mu-row__title"><?php esc_html_e('All Movies', 'astra-child'); ?></h2>
                         </div>
                         <div class="mu-row__head-right">

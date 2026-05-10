@@ -241,6 +241,46 @@ while (have_posts()) :
     .mdetail-btn { padding: 12px 20px; font-size: 0.9rem; }
     .mdetail-episode__thumb { width: 80px; }
 }
+
+/* FIX TV detail tab buttons hover */
+.mdetail-tabs {
+  background: rgba(10,10,14,.88) !important;
+  backdrop-filter: blur(14px) !important;
+}
+
+.mdetail-tabs__inner {
+  gap: 10px !important;
+  padding: 12px 4% !important;
+}
+
+.mdetail-tab {
+  padding: 12px 24px !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: rgba(255,255,255,.56) !important;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  transition: all .22s ease !important;
+}
+
+.mdetail-tab:hover {
+  background: rgba(255,255,255,.08) !important;
+  border-color: rgba(255,255,255,.14) !important;
+  color: #fff !important;
+  transform: translateY(-1px) !important;
+}
+
+.mdetail-tab.is-active {
+  background: #e50914 !important;
+  border-color: #e50914 !important;
+  color: #fff !important;
+  box-shadow: 0 10px 28px rgba(229,9,20,.32) !important;
+}
+
+.mdetail-tab.is-active::after {
+  display: none !important;
+}
 </style>
 
 <div class="mdetail-page">

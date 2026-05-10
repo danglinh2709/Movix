@@ -9,8 +9,8 @@ if (!$avatar_url || is_wp_error($avatar_url)) {
     $avatar_url = 'https://secure.gravatar.com/avatar/00000000000000000000000000000000?s=80&d=mm&r=g';
 }
 
-$movies_archive = trailingslashit(home_url()) . 'movies';
-$tv_archive     = trailingslashit(home_url()) . 'tv';
+$movies_archive = trailingslashit(home_url('/movies'));
+$tv_archive     = trailingslashit(home_url('/tv'));
 
 $trend_u   = function_exists('mu_get_page_url_by_slug') ? mu_get_page_url_by_slug('trending')     : trailingslashit(home_url('trending'));
 $list_u    = function_exists('mu_get_page_url_by_slug') ? mu_get_page_url_by_slug('favorites')   : trailingslashit(home_url('favorites'));
@@ -27,31 +27,37 @@ $log  = is_user_logged_in();
 $current_user = $log ? wp_get_current_user() : null;
 $display_name = $current_user ? $current_user->display_name : '';
 
-$active = static function (string $k) use ($log): string {
+// Get current path for active state detection
+$current_path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+$current_path = untrailingslashit($current_path);
+
+$active = static function (string $k) use ($log, $current_path): string {
     $log_class = $log ? ' is-logged-in' : '';
     switch ($k) {
         case 'home':
-            return is_front_page() ? 'is-active' . $log_class : '';
+            return ($current_path === '' || $current_path === '/' || $current_path === home_url('/', 'relative')) ? 'is-active' . $log_class : '';
         case 'movies':
-            return is_post_type_archive('movie') ? 'is-active' . $log_class : '';
+            return ($current_path === '/movies' || $current_path === 'movies') ? 'is-active' . $log_class : '';
         case 'tv':
-            return is_post_type_archive('tv_show') ? 'is-active' . $log_class : '';
+            return ($current_path === '/tv' || $current_path === 'tv') ? 'is-active' . $log_class : '';
         case 'trending':
-            return is_page('trending') ? 'is-active' . $log_class : '';
+            return ($current_path === '/trending' || $current_path === 'trending') ? 'is-active' . $log_class : '';
         case 'toprated':
-            return is_page('top-rated') ? 'is-active' . $log_class : '';
+            return ($current_path === '/top-rated' || $current_path === 'top-rated') ? 'is-active' . $log_class : '';
         case 'newrel':
-            return is_page('new-releases') ? 'is-active' . $log_class : '';
+            return ($current_path === '/new-releases' || $current_path === 'new-releases') ? 'is-active' . $log_class : '';
         case 'list':
-            return is_page('favorites') ? 'is-active' . $log_class : '';
+            return ($current_path === '/favorites' || $current_path === 'favorites') ? 'is-active' . $log_class : '';
         case 'history':
-            return is_page('history') ? 'is-active' . $log_class : '';
+            return ($current_path === '/history' || $current_path === 'history') ? 'is-active' . $log_class : '';
         case 'search':
-            return is_page('search') ? 'is-active' . $log_class : '';
+            return ($current_path === '/search' || $current_path === 'search') ? 'is-active' . $log_class : '';
         case 'profile':
-            return is_page('profile') ? 'is-active' . $log_class : '';
+            return ($current_path === '/profile' || $current_path === 'profile') ? 'is-active' . $log_class : '';
         case 'vip':
-            return is_page('vip') ? 'is-active' . $log_class : '';
+            return ($current_path === '/vip' || $current_path === 'vip') ? 'is-active' . $log_class : '';
+        case 'watch':
+            return ($current_path === '/watch' || $current_path === 'watch') ? 'is-active' . $log_class : '';
         default:
             return '';
     }
@@ -62,9 +68,9 @@ $active = static function (string $k) use ($log): string {
     <div class="mu-header__inner">
 
         <?php // Mobile burger ?>
-        <button type="button" class="mu-burger" data-mu-open-drawer aria-label="<?php esc_attr_e('Menu', 'astra-child'); ?>">
+        <!-- <button type="button" class="mu-burger" data-mu-open-drawer aria-label="<?php esc_attr_e('Menu', 'astra-child'); ?>">
             <span></span>
-        </button>
+        </button> -->
 
         <?php // Logo ?>
         <a href="<?php echo esc_url($home); ?>" class="mu-brand" aria-label="<?php esc_attr_e('Home', 'astra-child'); ?>">
@@ -109,17 +115,26 @@ $active = static function (string $k) use ($log): string {
                data-nav="newrel">
                 <?php esc_html_e('New Releases', 'astra-child'); ?>
             </a>
+            <!-- <a href="<?php echo esc_url($search_u); ?>"
+               class="<?php echo esc_attr($active('watch')); ?>"
+               data-nav="watch">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right:4px;">
+                    <path d="M8 5v14l11-7z"/>
+                </svg>
+                <?php esc_html_e('Watch', 'astra-child'); ?>
+            </a> -->
         </nav>
 
         <?php // Right actions ?>
         <div class="mu-header__actions">
 
-            <?php // Search button — opens search overlay ?>
+            <?php // Search button — opens search overlay/page ?>
             <button type="button"
                     class="mu-icon-btn mu-icon-btn--search"
                     data-mu-open-search
                     aria-label="<?php esc_attr_e('Search', 'astra-child'); ?>"
-                    title="<?php esc_attr_e('Search', 'astra-child'); ?>">
+                    title="<?php esc_attr_e('Search', 'astra-child'); ?>"
+                    onclick="window.location.href='<?php echo esc_url($search_u); ?>'">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <circle cx="11" cy="11" r="8"/>
                     <line x1="21" y1="21" x2="16.65" y2="16.65"/>

@@ -727,6 +727,30 @@ $ajax_nonce = wp_create_nonce('mu_toprated_ajax');
         text-align: center;
     }
 }
+
+/* FIX card phim không đều kích thước */
+.toprated-card {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.toprated-card__poster-wrap {
+  width: 100% !important;
+  aspect-ratio: 2 / 3 !important;
+  height: auto !important;
+  overflow: hidden !important;
+  border-radius: 10px !important;
+}
+
+.toprated-card__poster {
+  width: 100% !important;
+  height: 100% !important;
+  aspect-ratio: 2 / 3 !important;
+  object-fit: cover !important;
+  object-position: center !important;
+  display: block !important;
+  max-width: none !important;
+}
 </style>
 
 <div class="toprated-page">
@@ -822,7 +846,7 @@ $ajax_nonce = wp_create_nonce('mu_toprated_ajax');
                     $trailer = movie_ui_meta($pid, ['trailer_url', '_trailer_url'], '');
                     $video = movie_ui_meta($pid, ['video_url', '_video_url'], '');
                     $watch_url = add_query_arg('id', $pid, $watch_base);
-                    $play_action = $trailer ? 'trailer:' . esc_attr($trailer) : ($video ? 'watch:' . esc_url($watch_url) : '');
+                    $play_action = 'watch:' . esc_url($watch_url);
                     $type_label = $ptype === 'tv_show' ? __('TV', 'astra-child') : __('Movie', 'astra-child');
                 ?>
                     <article class="toprated-card"

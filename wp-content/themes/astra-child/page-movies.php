@@ -1,8 +1,8 @@
 <?php
 /**
- * TV Shows Archive - Premium OTT Streaming Platform
- * Netflix/HBO Max/Prime Video Quality
- * URL: /tv/ or /tv-shows/
+ * Template Name: Movies Page
+ * Premium OTT Streaming Platform
+ * Custom page for /movies/ route
  */
 defined('ABSPATH') || exit;
 
@@ -21,13 +21,12 @@ $is_filtered = !empty($current_genre) || !empty($search_query);
 // URLs
 // ============================================================
 $watch_base = function_exists('mu_get_page_url_by_slug') ? mu_get_page_url_by_slug('watch') : trailingslashit(home_url('watch'));
-$tv_archive_url = get_post_type_archive_link('tv_show') ?: trailingslashit(home_url('tv'));
 
 // ============================================================
 // COUNT
 // ============================================================
-$tv_count = wp_count_posts('tv_show');
-$total_tv = $tv_count && isset($tv_count->publish) ? (int) $tv_count->publish : 0;
+$movie_count = wp_count_posts('movie');
+$total_movies = $movie_count && isset($movie_count->publish) ? (int) $movie_count->publish : 0;
 
 // ============================================================
 // GENRES
@@ -47,10 +46,10 @@ foreach ($all_genres as $g) {
 }
 
 // ============================================================
-// HERO: Featured TV Shows
+// HERO: Featured Movies
 // ============================================================
 $hero_args = [
-    'post_type' => 'tv_show',
+    'post_type' => 'movie',
     'posts_per_page' => 5,
     'meta_key' => '_rating',
     'orderby' => 'meta_value_num',
@@ -64,7 +63,6 @@ if ($hero_q->have_posts()) {
         $hero_q->the_post();
         $hid = get_the_ID();
         
-        // Get metadata
         $backdrop = '';
         if (function_exists('movie_ui_backdrop_url')) {
             $backdrop = movie_ui_backdrop_url($hid);
@@ -81,33 +79,12 @@ if ($hero_q->have_posts()) {
         $rating = movie_ui_meta($hid, ['rating', '_rating'], '');
         $year = movie_ui_meta($hid, ['year', '_release_year'], '');
         $age = movie_ui_meta($hid, ['age_rating', '_age_rating'], '');
+        $runtime = movie_ui_meta($hid, ['duration', '_duration'], '');
+        $quality = movie_ui_meta($hid, ['quality', '_quality'], 'HD');
         $genres = movie_ui_terms_text($hid, 'genre', 2);
         $overview = wp_trim_words(wp_strip_all_tags(get_the_content() ?: get_the_excerpt() ?: ''), 35);
         
-        // Seasons count
-        $seasons = get_terms([
-            'taxonomy' => 'season',
-            'hide_empty' => true,
-            'meta_query' => [['key' => 'tv_show_id', 'value' => $hid]],
-        ]);
-        $season_count = $seasons && !is_wp_error($seasons) ? count($seasons) : 1;
-        
-        // First episode for play
-        $first_ep = new WP_Query([
-            'post_type' => 'episode',
-            'posts_per_page' => 1,
-            'meta_query' => [['key' => 'tv_show_id', 'value' => $hid]],
-            'orderby' => ['meta_value_num' => 'ASC'],
-            'meta_key' => 'episode_number',
-        ]);
-        $play_id = 0;
-        if ($first_ep->have_posts()) {
-            $first_ep->the_post();
-            $play_id = get_the_ID();
-        }
-        wp_reset_postdata();
-        
-        $watch_url = $play_id ? add_query_arg('id', $play_id, $watch_base) : '#';
+        $watch_url = add_query_arg('id', $hid, $watch_base);
         $detail_url = get_permalink($hid);
         
         $hero_slides[] = [
@@ -118,9 +95,10 @@ if ($hero_q->have_posts()) {
             'rating' => $rating,
             'year' => $year,
             'age' => $age,
+            'runtime' => $runtime,
+            'quality' => $quality,
             'genres' => $genres,
             'overview' => $overview,
-            'seasons' => $season_count,
             'watch_url' => $watch_url,
             'detail_url' => $detail_url,
         ];
@@ -132,9 +110,9 @@ if ($hero_q->have_posts()) {
 // SECTIONS DATA
 // ============================================================
 
-// Popular TV Shows
+// Popular Movies
 $popular_q = new WP_Query([
-    'post_type' => 'tv_show',
+    'post_type' => 'movie',
     'posts_per_page' => 16,
     'meta_key' => '_view_count',
     'orderby' => 'meta_value_num',
@@ -142,9 +120,9 @@ $popular_q = new WP_Query([
     'no_found_rows' => true,
 ]);
 
-// New Episodes (recent episodes)
-$new_episodes_q = new WP_Query([
-    'post_type' => 'episode',
+// New Releases
+$newrel_q = new WP_Query([
+    'post_type' => 'movie',
     'posts_per_page' => 16,
     'orderby' => 'date',
     'order' => 'DESC',
@@ -153,7 +131,7 @@ $new_episodes_q = new WP_Query([
 
 // Top Rated
 $toprated_q = new WP_Query([
-    'post_type' => 'tv_show',
+    'post_type' => 'movie',
     'posts_per_page' => 16,
     'meta_key' => '_rating',
     'orderby' => 'meta_value_num',
@@ -163,7 +141,7 @@ $toprated_q = new WP_Query([
 
 // Trending
 $trending_q = new WP_Query([
-    'post_type' => 'tv_show',
+    'post_type' => 'movie',
     'posts_per_page' => 16,
     'meta_key' => '_view_count',
     'orderby' => 'meta_value_num',
@@ -175,33 +153,12 @@ $trending_q = new WP_Query([
 // ============================================================
 // HELPERS
 // ============================================================
-function tv_get_show_data($post_id, $watch_base) {
+function mu_render_movie_card_data($post_id, $watch_base) {
     $poster = get_the_post_thumbnail_url($post_id, 'medium');
     $rating = movie_ui_meta($post_id, ['rating', '_rating'], '');
     $year = movie_ui_meta($post_id, ['year', '_release_year'], '');
-    
-    // Seasons
-    $seasons = get_terms([
-        'taxonomy' => 'season',
-        'hide_empty' => true,
-        'meta_query' => [['key' => 'tv_show_id', 'value' => $post_id]],
-    ]);
-    $season_count = $seasons && !is_wp_error($seasons) ? count($seasons) : 0;
-    
-    // First episode
-    $first_ep = new WP_Query([
-        'post_type' => 'episode',
-        'posts_per_page' => 1,
-        'meta_query' => [['key' => 'tv_show_id', 'value' => $post_id]],
-        'orderby' => ['meta_value_num' => 'ASC'],
-        'meta_key' => 'episode_number',
-    ]);
-    $play_id = 0;
-    if ($first_ep->have_posts()) {
-        $first_ep->the_post();
-        $play_id = get_the_ID();
-    }
-    wp_reset_postdata();
+    $quality = movie_ui_meta($post_id, ['quality', '_quality'], 'HD');
+    $runtime = movie_ui_meta($post_id, ['duration', '_runtime'], '');
     
     return [
         'id' => $post_id,
@@ -209,13 +166,14 @@ function tv_get_show_data($post_id, $watch_base) {
         'poster' => $poster,
         'rating' => $rating,
         'year' => $year,
-        'seasons' => $season_count,
-        'watch_url' => $play_id ? add_query_arg('id', $play_id, $watch_base) : '#',
+        'quality' => $quality,
+        'runtime' => $runtime,
+        'watch_url' => add_query_arg('id', $post_id, $watch_base),
         'detail_url' => get_permalink($post_id),
     ];
 }
 
-function tv_render_card($data) {
+function mu_movie_render_card($data) {
     $poster_placeholder = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 330"%3E%3Crect fill="%23111" width="220" height="330"/%3E%3C/svg%3E';
     ?>
     <div class="tv-card" data-id="<?php echo esc_attr($data['id']); ?>" data-href="<?php echo esc_url($data['detail_url']); ?>">
@@ -224,6 +182,9 @@ function tv_render_card($data) {
                  alt="<?php echo esc_attr($data['title']); ?>" 
                  class="tv-card__img"
                  loading="lazy">
+            <?php if (!empty($data['quality'])) : ?>
+                <span class="tv-card__badge" style="background:rgba(0,0,0,0.8);"><?php echo esc_html($data['quality']); ?></span>
+            <?php endif; ?>
             <div class="tv-card__overlay">
                 <div class="tv-card__actions">
                     <button class="tv-card__action tv-card__action--play" 
@@ -265,8 +226,8 @@ function tv_render_card($data) {
                     <span><?php echo esc_html(substr($data['year'], 0, 4)); ?></span>
                     <span class="tv-card__meta-dot"></span>
                 <?php endif; ?>
-                <?php if ($data['seasons']) : ?>
-                    <span><?php printf(esc_html(_n('%d Season', '%d Seasons', $data['seasons'], 'astra-child')), $data['seasons']); ?></span>
+                <?php if ($data['runtime']) : ?>
+                    <span><?php echo esc_html($data['runtime']); ?> min</span>
                 <?php endif; ?>
             </div>
         </div>
@@ -274,46 +235,7 @@ function tv_render_card($data) {
     <?php
 }
 
-function tv_render_episode_card($ep, $watch_base) {
-    $tv_id = (int) get_post_meta($ep->ID, 'tv_show_id', true);
-    $tv_title = $tv_id ? get_the_title($tv_id) : '';
-    $ep_num = get_post_meta($ep->ID, 'episode_number', true) ?: 1;
-    $season_num = get_post_meta($ep->ID, 'season_number', true) ?: 1;
-    $ep_thumb = get_the_post_thumbnail_url($ep->ID, 'medium');
-    $watch_url = add_query_arg('id', $ep->ID, $watch_base);
-    
-    $poster_placeholder = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 330"%3E%3Crect fill="%23111" width="220" height="330"/%3E%3C/svg%3E';
-    ?>
-    <div class="tv-card" data-id="<?php echo esc_attr($ep->ID); ?>" data-href="<?php echo esc_url($watch_url); ?>">
-        <div class="tv-card__poster">
-            <img src="<?php echo esc_url($ep_thumb ?: $poster_placeholder); ?>" 
-                 alt="<?php echo esc_attr($ep->post_title); ?>" 
-                 class="tv-card__img"
-                 loading="lazy">
-            <span class="tv-card__badge">New</span>
-            <span class="tv-card__episode">S<?php echo esc_html($season_num); ?> • E<?php echo esc_html($ep_num); ?></span>
-            <div class="tv-card__overlay">
-                <div class="tv-card__actions">
-                    <button class="tv-card__action tv-card__action--play" 
-                            data-action="play" 
-                            data-href="<?php echo esc_url($watch_url); ?>"
-                            aria-label="Play">
-                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-        <div class="tv-card__info">
-            <h3 class="tv-card__title"><?php echo esc_html($ep->post_title); ?></h3>
-            <div class="tv-card__meta">
-                <span><?php echo esc_html($tv_title); ?></span>
-            </div>
-        </div>
-    </div>
-    <?php
-}
-
-function tv_render_section($title, $query, $watch_base, $type = 'show') {
+function mu_movie_render_section($title, $query, $watch_base) {
     if (!$query->have_posts()) {
         wp_reset_postdata();
         return;
@@ -334,11 +256,7 @@ function tv_render_section($title, $query, $watch_base, $type = 'show') {
                 <?php
                 while ($query->have_posts()) :
                     $query->the_post();
-                    if ($type === 'show') {
-                        tv_render_card(tv_get_show_data(get_the_ID(), $watch_base));
-                    } else {
-                        tv_render_episode_card(get_post(), $watch_base);
-                    }
+                    mu_movie_render_card(mu_render_movie_card_data(get_the_ID(), $watch_base));
                 endwhile;
                 wp_reset_postdata();
                 ?>
@@ -359,7 +277,7 @@ function tv_render_section($title, $query, $watch_base, $type = 'show') {
 <head>
     <meta charset="<?php bloginfo('charset'); ?>">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?php esc_html_e('TV Shows', 'astra-child'); ?> - <?php bloginfo('name'); ?></title>
+    <title><?php esc_html_e('Movies', 'astra-child'); ?> - <?php bloginfo('name'); ?></title>
     <?php wp_head(); ?>
     <link rel="stylesheet" href="<?php echo esc_url(get_theme_file_uri('assets/css/movie-ui.css')); ?>">
     <link rel="stylesheet" href="<?php echo esc_url(get_theme_file_uri('assets/css/ms-tv-shows.css')); ?>">
@@ -370,9 +288,7 @@ function tv_render_section($title, $query, $watch_base, $type = 'show') {
 
 <div class="tv-page">
 
-    <!-- ============================================================ -->
     <!-- HERO SECTION -->
-    <!-- ============================================================ -->
     <?php if (!empty($hero_slides)) : ?>
     <section class="tv-hero">
         <div class="tv-hero__slider">
@@ -380,9 +296,9 @@ function tv_render_section($title, $query, $watch_base, $type = 'show') {
             <div class="tv-hero__slide<?php echo $i === 0 ? ' is-active' : ''; ?>" data-index="<?php echo esc_attr($i); ?>">
                 <div class="tv-hero__bg" style="background-image: url('<?php echo esc_url($slide['backdrop']); ?>');"></div>
                 <div class="tv-hero__content">
-                    <div class="tv-hero__badge">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM9 8l7 4-7 4V8z"/></svg>
-                        TV Series
+                    <div class="tv-hero__badge" style="background:rgba(255,255,255,0.2);">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg>
+                        <?php echo esc_html($slide['quality'] ?: 'Movie'); ?>
                     </div>
                     <h1 class="tv-hero__title"><?php echo esc_html($slide['title']); ?></h1>
                     <div class="tv-hero__meta">
@@ -397,7 +313,10 @@ function tv_render_section($title, $query, $watch_base, $type = 'show') {
                             <span class="tv-hero__meta-item"><?php echo esc_html(substr($slide['year'], 0, 4)); ?></span>
                             <span class="tv-hero__meta-dot"></span>
                         <?php endif; ?>
-                        <span class="tv-hero__meta-item"><?php printf(esc_html(_n('%d Season', '%d Seasons', $slide['seasons'], 'astra-child')), $slide['seasons']); ?></span>
+                        <?php if ($slide['runtime']) : ?>
+                            <span class="tv-hero__meta-item"><?php echo esc_html($slide['runtime']); ?> min</span>
+                            <span class="tv-hero__meta-dot"></span>
+                        <?php endif; ?>
                         <?php if ($slide['age']) : ?>
                             <span class="tv-hero__age"><?php echo esc_html($slide['age']); ?></span>
                         <?php endif; ?>
@@ -429,7 +348,6 @@ function tv_render_section($title, $query, $watch_base, $type = 'show') {
             <?php endforeach; ?>
         </div>
         
-        <!-- Navigation Dots -->
         <?php if (count($hero_slides) > 1) : ?>
         <div class="tv-hero__dots">
             <?php foreach ($hero_slides as $i => $slide) : ?>
@@ -440,9 +358,7 @@ function tv_render_section($title, $query, $watch_base, $type = 'show') {
     </section>
     <?php endif; ?>
 
-    <!-- ============================================================ -->
     <!-- GENRE CHIPS -->
-    <!-- ============================================================ -->
     <div class="tv-genres">
         <button class="tv-genre-chip is-active" data-genre="">All</button>
         <?php foreach ($genre_list as $genre) : ?>
@@ -452,90 +368,29 @@ function tv_render_section($title, $query, $watch_base, $type = 'show') {
         <?php endforeach; ?>
     </div>
 
-    <!-- ============================================================ -->
     <!-- CONTENT SECTIONS -->
-    <!-- ============================================================ -->
     <div class="tv-content">
-        
-        <?php 
-        // New Episodes Section
-        if ($new_episodes_q->have_posts()) {
-            echo '<section class="tv-section" data-genre="all">';
-            echo '<div class="tv-section__header">';
-            echo '<h2 class="tv-section__title">New Episodes</h2>';
-            echo '</div>';
-            echo '<div class="tv-swiper">';
-            echo '<div class="tv-swiper__wrapper">';
-            
-            while ($new_episodes_q->have_posts()) :
-                $new_episodes_q->the_post();
-                tv_render_episode_card(get_post(), $watch_base);
-            endwhile;
-            wp_reset_postdata();
-            
-            echo '</div>';
-            echo '<button class="tv-swiper__nav tv-swiper__nav--prev" aria-label="Previous">';
-            echo '<svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>';
-            echo '</button>';
-            echo '<button class="tv-swiper__nav tv-swiper__nav--next" aria-label="Next">';
-            echo '<svg viewBox="0 0 24 24"><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>';
-            echo '</button>';
-            echo '</div>';
-            echo '</section>';
-        }
-        ?>
-
-        <?php 
-        // Trending Section
-        tv_render_section('Trending Now', $trending_q, $watch_base, 'show');
-        ?>
-
-        <?php 
-        // Popular Section
-        tv_render_section('Popular TV Shows', $popular_q, $watch_base, 'show');
-        ?>
-
-        <?php 
-        // Top Rated Section
-        tv_render_section('Top Rated', $toprated_q, $watch_base, 'show');
-        ?>
-
+        <?php mu_movie_render_section('Trending Now', $trending_q, $watch_base); ?>
+        <?php mu_movie_render_section('New Releases', $newrel_q, $watch_base); ?>
+        <?php mu_movie_render_section('Popular Movies', $popular_q, $watch_base); ?>
+        <?php mu_movie_render_section('Top Rated', $toprated_q, $watch_base); ?>
     </div>
 
-    <!-- ============================================================ -->
-    <!-- NETWORKS SECTION -->
-    <!-- ============================================================ -->
-    <section class="tv-networks">
-        <h2 class="tv-networks__title">Streaming Networks</h2>
-        <div class="tv-networks__grid">
-            <div class="tv-network">Netflix</div>
-            <div class="tv-network">HBO Max</div>
-            <div class="tv-network">Disney+</div>
-            <div class="tv-network">Prime Video</div>
-            <div class="tv-network">Hulu</div>
-            <div class="tv-network">Apple TV+</div>
-            <div class="tv-network">AMC</div>
-            <div class="tv-network">FX</div>
-        </div>
-    </section>
-
-    <!-- ============================================================ -->
     <!-- FEATURES SECTION -->
-    <!-- ============================================================ -->
     <section class="tv-features">
         <div class="tv-feature">
             <div class="tv-feature__icon">
-                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/></svg>
+                <svg viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4zm-6.75 11.25L8 12l3.25-3.25L14 12l-2.75 3.25zM16 18H8v-2h8v2z"/></svg>
             </div>
-            <h3 class="tv-feature__title">New Episodes Weekly</h3>
-            <p class="tv-feature__desc">Fresh content added every week to keep you entertained</p>
+            <h3 class="tv-feature__title">Thousands of Movies</h3>
+            <p class="tv-feature__desc">Access an extensive library of movies across all genres</p>
         </div>
         <div class="tv-feature">
             <div class="tv-feature__icon">
                 <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM9 8l7 4-7 4V8z"/></svg>
             </div>
-            <h3 class="tv-feature__title">HD Quality</h3>
-            <p class="tv-feature__desc">Crystal clear video with support for 4K Ultra HD</p>
+            <h3 class="tv-feature__title">4K Ultra HD</h3>
+            <p class="tv-feature__desc">Crystal clear video quality with HDR support</p>
         </div>
         <div class="tv-feature">
             <div class="tv-feature__icon">
@@ -548,8 +403,8 @@ function tv_render_section($title, $query, $watch_base, $type = 'show') {
             <div class="tv-feature__icon">
                 <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
             </div>
-            <h3 class="tv-feature__title">No Commitments</h3>
-            <p class="tv-feature__desc">Cancel anytime. Your choice, no pressure.</p>
+            <h3 class="tv-feature__title">No Ads</h3>
+            <p class="tv-feature__desc">Experience uninterrupted viewing without advertisements</p>
         </div>
     </section>
 

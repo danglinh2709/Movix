@@ -1,0 +1,1137 @@
+/**
+ * ============================================================
+ * Premium Watch Page CSS
+ * Modern streaming platform design (Netflix/Viu style)
+ * ============================================================
+ */
+
+/* ============================================================
+   VARIABLES
+   ============================================================ */
+:root {
+  --mu-accent: #e50914;
+  --mu-accent-hover: #ff1a25;
+  --mu-accent-soft: rgba(229, 9, 20, 0.15);
+  --mu-bg-0: #050505;
+  --mu-bg-1: #0a0a0a;
+  --mu-bg-2: #111111;
+  --mu-bg-3: #1a1a1a;
+  --mu-bg-4: #222222;
+  --mu-text: #ffffff;
+  --mu-text-secondary: rgba(255, 255, 255, 0.72);
+  --mu-muted: rgba(255, 255, 255, 0.55);
+  --mu-dim: rgba(255, 255, 255, 0.4);
+  --mu-border: rgba(255, 255, 255, 0.08);
+  --mu-border-hover: rgba(255, 255, 255, 0.15);
+  --mu-glass: rgba(15, 15, 15, 0.7);
+  --mu-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+  --mu-radius: 8px;
+  --mu-radius-lg: 14px;
+}
+
+/* ============================================================
+   BASE RESET
+   ============================================================ */
+.mu-watch-page * {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.mu-watch-page body,
+body.mu-watch-page {
+  background: var(--mu-bg-0) !important;
+  color: var(--mu-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  margin-top: 0 !important;
+}
+
+.mu-watch-page a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.mu-watch-page button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* ============================================================
+   HEADER (from movie-ui.css)
+   ============================================================ */
+.mu-watch-page .mu-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: linear-gradient(180deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.mu-watch-page .mu-header.is-solid {
+  background: var(--mu-bg-1) !important;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.5);
+}
+
+.mu-watch-page .mu-header__inner {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 48px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mu-watch-page .mu-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.mu-watch-page .mu-nav a {
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--mu-text-secondary);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.mu-watch-page .mu-nav a:hover {
+  color: white;
+  background: rgba(255,255,255,0.1);
+}
+
+.mu-watch-page .mu-nav a.is-active {
+  color: var(--mu-accent);
+}
+
+.mu-watch-page .mu-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mu-watch-page .mu-icon-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.1);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mu-watch-page .mu-icon-btn:hover {
+  background: var(--mu-accent);
+}
+
+.mu-watch-page .mu-avatar-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.3);
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.mu-watch-page .mu-avatar-btn:hover {
+  border-color: var(--mu-accent);
+}
+
+.mu-watch-page .mu-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mu-watch-page .mu-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.mu-watch-page .mu-brand__mark {
+  width: 36px;
+  height: 36px;
+  background: var(--mu-accent);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 800;
+  color: white;
+}
+
+.mu-watch-page .mu-brand__text {
+  font-size: 18px;
+  font-weight: 800;
+  color: white;
+  letter-spacing: 2px;
+}
+
+/* ============================================================
+   PAGE WRAPPER
+   ============================================================ */
+.mu-watch-container {
+  min-height: 100vh;
+  background: var(--mu-bg-0);
+}
+
+/* ============================================================
+   MAIN CONTENT SECTION
+   ============================================================ */
+.mu-watch-main {
+  display: flex;
+  gap: 32px;
+  padding: 24px 48px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+@media (max-width: 1200px) {
+  .mu-watch-main {
+    flex-direction: column;
+    padding: 20px 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .mu-watch-main {
+    padding: 16px;
+  }
+}
+
+/* ============================================================
+   POSTER SECTION (LEFT)
+   ============================================================ */
+.mu-watch-poster {
+  flex-shrink: 0;
+  width: 280px;
+}
+
+@media (max-width: 1200px) {
+  .mu-watch-poster {
+    width: 100%;
+    display: flex;
+    gap: 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .mu-watch-poster {
+    flex-direction: column;
+  }
+}
+
+.mu-watch-poster__image {
+  position: relative;
+  width: 280px;
+  border-radius: var(--mu-radius-lg);
+  overflow: hidden;
+  background: var(--mu-bg-2);
+  box-shadow: var(--mu-shadow);
+}
+
+@media (max-width: 1200px) {
+  .mu-watch-poster__image {
+    width: 180px;
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .mu-watch-poster__image {
+    width: 100%;
+    max-width: 200px;
+    margin: 0 auto;
+  }
+}
+
+.mu-watch-poster__img {
+  width: 100%;
+  aspect-ratio: 2/3;
+  object-fit: cover;
+  display: block;
+}
+
+.mu-watch-poster__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+}
+
+.mu-watch-poster__image:hover .mu-watch-poster__overlay {
+  opacity: 1;
+}
+
+.mu-watch-poster__play-btn {
+  width: 64px;
+  height: 64px;
+  background: var(--mu-accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  border: none;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.mu-watch-poster__play-btn:hover {
+  transform: scale(1.1);
+  background: var(--mu-accent-hover);
+}
+
+.mu-watch-poster__play-btn svg {
+  width: 28px;
+  height: 28px;
+  fill: white;
+  margin-left: 4px;
+}
+
+/* Poster Actions */
+.mu-watch-poster__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+@media (max-width: 1200px) {
+  .mu-watch-poster__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 0;
+    flex: 1;
+    align-content: flex-start;
+  }
+}
+
+.mu-watch-poster__action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--mu-bg-2);
+  border: 1px solid var(--mu-border);
+  border-radius: var(--mu-radius);
+  color: var(--mu-text);
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.mu-watch-poster__action-btn:hover {
+  background: var(--mu-bg-3);
+  border-color: var(--mu-border-hover);
+}
+
+.mu-watch-poster__action-btn.is-active {
+  background: var(--mu-accent-soft);
+  border-color: var(--mu-accent);
+  color: var(--mu-accent);
+}
+
+.mu-watch-poster__action-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.mu-watch-poster__action-btn.is-active svg {
+  fill: var(--mu-accent);
+}
+
+/* ============================================================
+   INFO SECTION (RIGHT)
+   ============================================================ */
+.mu-watch-info {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Title */
+.mu-watch-info__title {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin-bottom: 12px;
+  line-height: 1.2;
+}
+
+@media (max-width: 768px) {
+  .mu-watch-info__title {
+    font-size: 24px;
+  }
+}
+
+/* Meta Row */
+.mu-watch-info__meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.mu-watch-info__meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--mu-text-secondary);
+}
+
+.mu-watch-info__meta-item--rating {
+  color: #ffd700;
+  font-weight: 600;
+}
+
+.mu-watch-info__meta-item--rating svg {
+  width: 14px;
+  height: 14px;
+  fill: #ffd700;
+}
+
+.mu-watch-info__meta-dot {
+  width: 4px;
+  height: 4px;
+  background: var(--mu-muted);
+  border-radius: 50%;
+}
+
+.mu-watch-info__age {
+  border: 1px solid var(--mu-text-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Genres */
+.mu-watch-info__genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.mu-watch-info__genre {
+  padding: 6px 14px;
+  background: var(--mu-bg-3);
+  border-radius: 20px;
+  font-size: 13px;
+  color: var(--mu-text-secondary);
+  transition: all 0.2s ease;
+}
+
+.mu-watch-info__genre:hover {
+  background: var(--mu-accent-soft);
+  color: var(--mu-accent);
+}
+
+/* Action Buttons */
+.mu-watch-info__actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 480px) {
+  .mu-watch-info__actions {
+    flex-direction: column;
+  }
+}
+
+.mu-watch-info__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 32px;
+  border-radius: var(--mu-radius);
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mu-watch-info__btn--primary {
+  background: var(--mu-accent);
+  color: white;
+}
+
+.mu-watch-info__btn--primary:hover {
+  background: var(--mu-accent-hover);
+  transform: scale(1.02);
+}
+
+.mu-watch-info__btn--primary svg {
+  width: 20px;
+  height: 20px;
+  fill: white;
+}
+
+.mu-watch-info__btn--secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px solid var(--mu-border);
+}
+
+.mu-watch-info__btn--secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--mu-border-hover);
+}
+
+.mu-watch-info__btn--secondary svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.mu-watch-info__btn--secondary.is-active {
+  background: var(--mu-accent-soft);
+  border-color: var(--mu-accent);
+  color: var(--mu-accent);
+}
+
+.mu-watch-info__btn--secondary.is-active svg {
+  fill: var(--mu-accent);
+}
+
+/* Overview */
+.mu-watch-info__overview {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--mu-text-secondary);
+  margin-bottom: 24px;
+}
+
+/* Details */
+.mu-watch-info__details {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  background: var(--mu-bg-1);
+  border-radius: var(--mu-radius-lg);
+  margin-bottom: 24px;
+}
+
+.mu-watch-info__detail {
+  display: flex;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.mu-watch-info__detail-label {
+  color: var(--mu-muted);
+  min-width: 100px;
+}
+
+.mu-watch-info__detail-value {
+  color: var(--mu-text-secondary);
+}
+
+.mu-watch-info__detail-value a {
+  color: var(--mu-accent);
+}
+
+.mu-watch-info__detail-value a:hover {
+  text-decoration: underline;
+}
+
+/* ============================================================
+   CAST SECTION
+   ============================================================ */
+.mu-watch-cast {
+  margin-bottom: 32px;
+}
+
+.mu-watch-cast__title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: white;
+}
+
+.mu-watch-cast__list {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--mu-bg-3) transparent;
+}
+
+.mu-watch-cast__list::-webkit-scrollbar {
+  height: 6px;
+}
+
+.mu-watch-cast__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mu-watch-cast__list::-webkit-scrollbar-thumb {
+  background: var(--mu-bg-3);
+  border-radius: 3px;
+}
+
+.mu-watch-cast__item {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 80px;
+  text-decoration: none;
+}
+
+.mu-watch-cast__avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--mu-bg-3);
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.mu-watch-cast__item:hover .mu-watch-cast__avatar {
+  border-color: var(--mu-accent);
+  transform: scale(1.05);
+}
+
+.mu-watch-cast__avatar-placeholder {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--mu-bg-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mu-muted);
+}
+
+.mu-watch-cast__avatar-placeholder svg {
+  width: 28px;
+  height: 28px;
+}
+
+.mu-watch-cast__name {
+  font-size: 12px;
+  color: var(--mu-text-secondary);
+  text-align: center;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   EPISODES SECTION
+   ============================================================ */
+.mu-watch-episodes {
+  margin-bottom: 32px;
+}
+
+.mu-watch-episodes__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.mu-watch-episodes__title {
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+}
+
+.mu-watch-episodes__select {
+  padding: 10px 16px;
+  background: var(--mu-bg-2);
+  border: 1px solid var(--mu-border);
+  border-radius: var(--mu-radius);
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mu-watch-episodes__select:hover {
+  border-color: var(--mu-border-hover);
+}
+
+.mu-watch-episodes__select:focus {
+  outline: none;
+  border-color: var(--mu-accent);
+}
+
+.mu-watch-episodes__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mu-watch-episode {
+  display: flex;
+  gap: 16px;
+  padding: 12px;
+  background: var(--mu-bg-1);
+  border-radius: var(--mu-radius-lg);
+  border: 1px solid transparent;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.mu-watch-episode:hover {
+  background: var(--mu-bg-2);
+  border-color: var(--mu-border);
+}
+
+.mu-watch-episode.is-active {
+  border-color: var(--mu-accent);
+  background: var(--mu-accent-soft);
+}
+
+.mu-watch-episode__thumb {
+  width: 160px;
+  height: 90px;
+  border-radius: var(--mu-radius);
+  background: var(--mu-bg-3);
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+}
+
+.mu-watch-episode__play {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.mu-watch-episode:hover .mu-watch-episode__play {
+  opacity: 1;
+}
+
+.mu-watch-episode__play-icon {
+  width: 44px;
+  height: 44px;
+  background: var(--mu-accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mu-watch-episode__play-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: white;
+  margin-left: 2px;
+}
+
+.mu-watch-episode__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.mu-watch-episode__number {
+  font-size: 12px;
+  color: var(--mu-muted);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.mu-watch-episode__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 6px;
+}
+
+.mu-watch-episode__desc {
+  font-size: 13px;
+  color: var(--mu-muted);
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.mu-watch-episode__meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--mu-muted);
+}
+
+.mu-watch-episode__progress {
+  width: 100px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.mu-watch-episode__progress-bar {
+  height: 100%;
+  background: var(--mu-accent);
+  border-radius: 2px;
+}
+
+@media (max-width: 768px) {
+  .mu-watch-episode {
+    flex-direction: column;
+  }
+  
+  .mu-watch-episode__thumb {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16/9;
+  }
+}
+
+/* ============================================================
+   SIDEBAR (RIGHT)
+   ============================================================ */
+.mu-watch-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1200px) {
+  .mu-watch-sidebar {
+    width: 100%;
+  }
+}
+
+/* Up Next */
+.mu-watch-upnext {
+  background: var(--mu-bg-1);
+  border-radius: var(--mu-radius-lg);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.mu-watch-upnext__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  border-bottom: 1px solid var(--mu-border);
+}
+
+.mu-watch-upnext__header svg {
+  width: 16px;
+  height: 16px;
+  fill: var(--mu-accent);
+}
+
+.mu-watch-upnext__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--mu-accent);
+}
+
+.mu-watch-upnext__card {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  text-decoration: none;
+  transition: background 0.2s ease;
+}
+
+.mu-watch-upnext__card:hover {
+  background: var(--mu-bg-2);
+}
+
+.mu-watch-upnext__thumb {
+  width: 100px;
+  height: 56px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--mu-bg-3);
+}
+
+.mu-watch-upnext__info {
+  flex: 1;
+}
+
+.mu-watch-upnext__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 4px;
+}
+
+.mu-watch-upnext__episode {
+  font-size: 12px;
+  color: var(--mu-muted);
+  margin-bottom: 8px;
+}
+
+.mu-watch-upnext__progress {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.mu-watch-upnext__progress-bar {
+  height: 100%;
+  background: var(--mu-accent);
+  border-radius: 2px;
+  width: 0%;
+}
+
+/* Related */
+.mu-watch-related {
+  background: var(--mu-bg-1);
+  border-radius: var(--mu-radius-lg);
+  padding: 16px;
+}
+
+.mu-watch-related__title {
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 16px;
+}
+
+.mu-watch-related__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mu-watch-related__item {
+  display: flex;
+  gap: 12px;
+  text-decoration: none;
+  padding: 8px;
+  border-radius: var(--mu-radius);
+  transition: background 0.2s ease;
+}
+
+.mu-watch-related__item:hover {
+  background: var(--mu-bg-2);
+}
+
+.mu-watch-related__thumb {
+  width: 60px;
+  height: 90px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--mu-bg-3);
+  flex-shrink: 0;
+}
+
+.mu-watch-related__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mu-watch-related__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mu-watch-related__meta {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--mu-muted);
+}
+
+/* ============================================================
+   PLAYER SECTION (FULL WIDTH)
+   ============================================================ */
+.mu-player-wrapper {
+  position: relative;
+  width: 100%;
+  background: #000;
+}
+
+.mu-player-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 90vh;
+  overflow: hidden;
+  background: #000;
+}
+
+.mu-player-video,
+.mu-player-iframe {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #000;
+}
+
+.mu-player-iframe-container {
+  width: 100%;
+  height: 100%;
+}
+
+/* ============================================================
+   ERROR / EMPTY STATE
+   ============================================================ */
+.mu-watch-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 16px;
+  text-align: center;
+  padding: 40px;
+}
+
+.mu-watch-error p {
+  font-size: 18px;
+  color: var(--mu-muted);
+}
+
+.mu-watch-error a {
+  padding: 12px 24px;
+  background: var(--mu-accent);
+  color: white;
+  border-radius: var(--mu-radius);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.mu-watch-empty {
+  text-align: center;
+  padding: 40px;
+  background: var(--mu-bg-1);
+  border-radius: var(--mu-radius-lg);
+  color: var(--mu-muted);
+}
+
+/* ============================================================
+   BUTTON COMPONENTS
+   ============================================================ */
+.mu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--mu-radius);
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mu-btn--primary {
+  background: var(--mu-accent);
+  color: white;
+}
+
+.mu-btn--primary:hover {
+  background: var(--mu-accent-hover);
+}
+
+.mu-btn--secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px solid var(--mu-border);
+}
+
+.mu-btn--secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.mu-btn--icon {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 768px) {
+  .mu-watch-info__title {
+    font-size: 22px;
+  }
+  
+  .mu-watch-info__meta {
+    gap: 8px;
+  }
+  
+  .mu-watch-info__meta-item {
+    font-size: 13px;
+  }
+  
+  .mu-watch-info__btn {
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+}
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+.mu-watch-page ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.mu-watch-page ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mu-watch-page ::-webkit-scrollbar-thumb {
+  background: var(--mu-bg-3);
+  border-radius: 4px;
+}
+
+.mu-watch-page ::-webkit-scrollbar-thumb:hover {
+  background: var(--mu-bg-4);
+}

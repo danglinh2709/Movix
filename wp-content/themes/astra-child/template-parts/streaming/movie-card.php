@@ -91,17 +91,12 @@ $quality_display = $quality ?: 'HD';
 // Age rating
 $age_display = $age ?: '';
 
-// Determine play action
-$has_trailer = !empty($trailer);
+// Determine play action - Play ALWAYS goes to Watch page (never trailer)
 $has_video   = !empty($video_url);
+$has_trailer = !empty($trailer);
 
-// Build action string for JS
-$play_action = 'unavailable';
-if ($has_trailer) {
-    $play_action = 'trailer:' . esc_attr($trailer);
-} elseif ($has_video) {
-    $play_action = 'watch:' . esc_url($watch_url);
-}
+// Play action: Watch page URL (video_url takes priority over trailer)
+$play_action = 'watch:' . esc_url($watch_url);
 ?>
 <article class="mu-card"
          data-id="<?php echo esc_attr((string) $post_id); ?>"
@@ -177,17 +172,16 @@ if ($has_trailer) {
             <?php // Action buttons row ?>
             <div class="mu-card__actions">
 
-                <?php // Play / Watch button ?>
+                <?php // Play / Watch button - ALWAYS goes to Watch page (never trailer) ?>
                 <button type="button"
                         class="mu-btn mu-btn--play mu-btn--icon"
                         data-mu-card-play
                         data-id="<?php echo esc_attr((string) $post_id); ?>"
                         data-play-action="<?php echo esc_attr($play_action); ?>"
                         data-watch-url="<?php echo esc_url($watch_url); ?>"
-                        data-trailer="<?php echo esc_attr($trailer); ?>"
                         aria-label="<?php esc_attr_e('Play / Watch', 'astra-child'); ?>"
                         title="<?php esc_attr_e('Play', 'astra-child'); ?>">
-                    <svg class="mu-ico-play" width="14" height="14" viewBox="0 0 24 24" fill = "none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <svg class="mu-ico-play" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                         <path d="M8 5v14l11-7z"/>
                     </svg>
                 </button>
