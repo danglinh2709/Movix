@@ -1,198 +1,41 @@
 <?php
 /**
- * TV Shows Archive - Premium OTT Streaming Platform
- * Netflix/HBO Max/Prime Video Quality
- * URL: /tv/ or /tv-shows/
+ * TV Shows Archive - Premium Netflix Style
+ * Cinematic streaming experience matching reference design
  */
 defined('ABSPATH') || exit;
 
-get_header();
-get_template_part('template-parts/streaming/header');
+// ============================================================
+// HELPER FUNCTIONS
+// ============================================================
 
-// ============================================================
-// URL PARAMETERS & STATE
-// ============================================================
-$current_genre = isset($_GET['genre']) ? sanitize_text_field(wp_unslash($_GET['genre'])) : '';
-$current_sort = isset($_GET['sort']) ? sanitize_text_field(wp_unslash($_GET['sort'])) : 'featured';
-$search_query = isset($_GET['s']) ? sanitize_text_field(wp_unslash($_GET['s'])) : '';
-$is_filtered = !empty($current_genre) || !empty($search_query);
-
-// ============================================================
-// URLs
-// ============================================================
-$watch_base = function_exists('mu_get_page_url_by_slug') ? mu_get_page_url_by_slug('watch') : trailingslashit(home_url('watch'));
-$tv_archive_url = get_post_type_archive_link('tv_show') ?: trailingslashit(home_url('tv'));
-
-// ============================================================
-// COUNT
-// ============================================================
-$tv_count = wp_count_posts('tv_show');
-$total_tv = $tv_count && isset($tv_count->publish) ? (int) $tv_count->publish : 0;
-
-// ============================================================
-// GENRES
-// ============================================================
-$all_genres = get_terms([
-    'taxonomy' => 'genre',
-    'hide_empty' => true,
-    'number' => 20,
-]);
-
-$genre_list = [];
-foreach ($all_genres as $g) {
-    $genre_list[] = [
-        'slug' => $g->slug,
-        'name' => $g->name,
-    ];
-}
-
-// ============================================================
-// HERO: Featured TV Shows
-// ============================================================
-$hero_args = [
-    'post_type' => 'tv_show',
-    'posts_per_page' => 5,
-    'meta_key' => '_rating',
-    'orderby' => 'meta_value_num',
-    'order' => 'DESC',
-];
-$hero_q = new WP_Query($hero_args);
-
-$hero_slides = [];
-if ($hero_q->have_posts()) {
-    while ($hero_q->have_posts()) {
-        $hero_q->the_post();
-        $hid = get_the_ID();
-        
-        // Get metadata
-        $backdrop = '';
-        if (function_exists('movie_ui_backdrop_url')) {
-            $backdrop = movie_ui_backdrop_url($hid);
+function tv_unique_by_title($posts) {
+    $seen = [];
+    $unique = [];
+    foreach ($posts as $post) {
+        $title = sanitize_title($post->post_title);
+        if (!isset($seen[$title])) {
+            $seen[$title] = true;
+            $unique[] = $post;
         }
-        if (!$backdrop) {
-            $thumb_id = get_post_thumbnail_id($hid);
-            if ($thumb_id) {
-                $bg = wp_get_attachment_image_src($thumb_id, 'large');
-                $backdrop = $bg[0] ?? '';
-            }
-        }
-        
-        $poster = get_the_post_thumbnail_url($hid, 'medium');
-        $rating = movie_ui_meta($hid, ['rating', '_rating'], '');
-        $year = movie_ui_meta($hid, ['year', '_release_year'], '');
-        $age = movie_ui_meta($hid, ['age_rating', '_age_rating'], '');
-        $genres = movie_ui_terms_text($hid, 'genre', 2);
-        $overview = wp_trim_words(wp_strip_all_tags(get_the_content() ?: get_the_excerpt() ?: ''), 35);
-        
-        // Seasons count
-        $seasons = get_terms([
-            'taxonomy' => 'season',
-            'hide_empty' => true,
-            'meta_query' => [['key' => 'tv_show_id', 'value' => $hid]],
-        ]);
-        $season_count = $seasons && !is_wp_error($seasons) ? count($seasons) : 1;
-        
-        // First episode for play
-        $first_ep = new WP_Query([
-            'post_type' => 'episode',
-            'posts_per_page' => 1,
-            'meta_query' => [['key' => 'tv_show_id', 'value' => $hid]],
-            'orderby' => ['meta_value_num' => 'ASC'],
-            'meta_key' => 'episode_number',
-        ]);
-        $play_id = 0;
-        if ($first_ep->have_posts()) {
-            $first_ep->the_post();
-            $play_id = get_the_ID();
-        }
-        wp_reset_postdata();
-        
-        $watch_url = $play_id ? add_query_arg('id', $play_id, $watch_base) : '#';
-        $detail_url = get_permalink($hid);
-        
-        $hero_slides[] = [
-            'id' => $hid,
-            'title' => get_the_title(),
-            'backdrop' => $backdrop,
-            'poster' => $poster,
-            'rating' => $rating,
-            'year' => $year,
-            'age' => $age,
-            'genres' => $genres,
-            'overview' => $overview,
-            'seasons' => $season_count,
-            'watch_url' => $watch_url,
-            'detail_url' => $detail_url,
-        ];
     }
-    wp_reset_postdata();
+    return $unique;
 }
 
-// ============================================================
-// SECTIONS DATA
-// ============================================================
-
-// Popular TV Shows
-$popular_q = new WP_Query([
-    'post_type' => 'tv_show',
-    'posts_per_page' => 16,
-    'meta_key' => '_view_count',
-    'orderby' => 'meta_value_num',
-    'order' => 'DESC',
-    'no_found_rows' => true,
-]);
-
-// New Episodes (recent episodes)
-$new_episodes_q = new WP_Query([
-    'post_type' => 'episode',
-    'posts_per_page' => 16,
-    'orderby' => 'date',
-    'order' => 'DESC',
-    'no_found_rows' => true,
-]);
-
-// Top Rated
-$toprated_q = new WP_Query([
-    'post_type' => 'tv_show',
-    'posts_per_page' => 16,
-    'meta_key' => '_rating',
-    'orderby' => 'meta_value_num',
-    'order' => 'DESC',
-    'no_found_rows' => true,
-]);
-
-// Trending
-$trending_q = new WP_Query([
-    'post_type' => 'tv_show',
-    'posts_per_page' => 16,
-    'meta_key' => '_view_count',
-    'orderby' => 'meta_value_num',
-    'order' => 'DESC',
-    'offset' => 0,
-    'no_found_rows' => true,
-]);
-
-// ============================================================
-// HELPERS
-// ============================================================
-function tv_get_show_data($post_id, $watch_base) {
-    $poster = get_the_post_thumbnail_url($post_id, 'medium');
-    $rating = movie_ui_meta($post_id, ['rating', '_rating'], '');
-    $year = movie_ui_meta($post_id, ['year', '_release_year'], '');
-    
-    // Seasons
+function tv_get_season_count($tv_id) {
     $seasons = get_terms([
         'taxonomy' => 'season',
         'hide_empty' => true,
-        'meta_query' => [['key' => 'tv_show_id', 'value' => $post_id]],
+        'meta_query' => [['key' => 'tv_show_id', 'value' => $tv_id]],
     ]);
-    $season_count = $seasons && !is_wp_error($seasons) ? count($seasons) : 0;
-    
-    // First episode
+    return $seasons && !is_wp_error($seasons) ? count($seasons) : 1;
+}
+
+function tv_get_first_episode($tv_id) {
     $first_ep = new WP_Query([
         'post_type' => 'episode',
         'posts_per_page' => 1,
-        'meta_query' => [['key' => 'tv_show_id', 'value' => $post_id]],
+        'meta_query' => [['key' => 'tv_show_id', 'value' => $tv_id]],
         'orderby' => ['meta_value_num' => 'ASC'],
         'meta_key' => 'episode_number',
     ]);
@@ -202,157 +45,149 @@ function tv_get_show_data($post_id, $watch_base) {
         $play_id = get_the_ID();
     }
     wp_reset_postdata();
+    return $play_id;
+}
+
+// ============================================================
+// URLS
+// ============================================================
+$watch_base = function_exists('mu_get_page_url_by_slug') 
+    ? mu_get_page_url_by_slug('watch') 
+    : trailingslashit(home_url('watch'));
+$movies_url = function_exists('mu_get_page_url_by_slug') 
+    ? mu_get_page_url_by_slug('movies') 
+    : trailingslashit(home_url('movies'));
+$tv_url = get_post_type_archive_link('tv_show') ?: trailingslashit(home_url('tv'));
+$search_url = function_exists('mu_get_page_url_by_slug') 
+    ? mu_get_page_url_by_slug('search') 
+    : trailingslashit(home_url('search'));
+
+// ============================================================
+// GENRES LIST
+// ============================================================
+$all_genres = get_terms([
+    'taxonomy' => 'genre',
+    'hide_empty' => true,
+    'number' => 20,
+]);
+
+// ============================================================
+// HERO: Top rated TV shows
+// ============================================================
+$hero_q = movie_ui_query([
+    'post_type' => 'tv_show',
+    'posts_per_page' => 20,
+    'meta_key' => '_rating',
+    'orderby' => 'meta_value_num',
+    'order' => 'DESC',
+]);
+$hero_posts = tv_unique_by_title($hero_q->posts);
+$hero_posts = array_slice($hero_posts, 0, 5);
+
+$hero_slides = [];
+foreach ($hero_posts as $post) {
+    setup_postdata($post);
+    $hid = $post->ID;
+    $year = movie_ui_meta($hid, ['year', '_release_year'], '');
+    $rating = movie_ui_meta($hid, ['rating', '_rating'], '');
+    $age = movie_ui_meta($hid, ['age_rating', '_age_rating'], '');
+    $genres = movie_ui_terms_text($hid, 'genre', 2);
+    $backdrop = movie_ui_backdrop_url($hid) ?: get_the_post_thumbnail_url($hid, 'full');
+    $overview = wp_trim_words(wp_strip_all_tags($post->post_content ?: $post->post_excerpt ?: ''), 35);
+    $season_count = tv_get_season_count($hid);
+    $play_id = tv_get_first_episode($hid);
     
-    return [
-        'id' => $post_id,
-        'title' => get_the_title($post_id),
-        'poster' => $poster,
-        'rating' => $rating,
+    $watch_url = $play_id ? add_query_arg('id', $play_id, $watch_base) : '#';
+    $detail_url = get_permalink($hid);
+    
+    $hero_slides[] = [
+        'id' => $hid,
+        'title' => get_the_title($hid),
         'year' => $year,
+        'rating' => $rating,
+        'age' => $age,
+        'genres' => $genres,
+        'backdrop' => $backdrop,
+        'overview' => $overview,
         'seasons' => $season_count,
-        'watch_url' => $play_id ? add_query_arg('id', $play_id, $watch_base) : '#',
-        'detail_url' => get_permalink($post_id),
+        'watch_url' => $watch_url,
+        'detail_url' => $detail_url,
     ];
 }
+wp_reset_postdata();
 
-function tv_render_card($data) {
-    $poster_placeholder = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 330"%3E%3Crect fill="%23111" width="220" height="330"/%3E%3C/svg%3E';
-    ?>
-    <div class="tv-card" data-id="<?php echo esc_attr($data['id']); ?>" data-href="<?php echo esc_url($data['detail_url']); ?>">
-        <div class="tv-card__poster">
-            <img src="<?php echo esc_url($data['poster'] ?: $poster_placeholder); ?>" 
-                 alt="<?php echo esc_attr($data['title']); ?>" 
-                 class="tv-card__img"
-                 loading="lazy">
-            <div class="tv-card__overlay">
-                <div class="tv-card__actions">
-                    <button class="tv-card__action tv-card__action--play" 
-                            data-action="play" 
-                            data-href="<?php echo esc_url($data['watch_url']); ?>"
-                            aria-label="Play">
-                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                    </button>
-                    <button class="tv-card__action" 
-                            data-action="add-list"
-                            aria-label="Add to My List">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
-                        </svg>
-                    </button>
-                    <button class="tv-card__action" 
-                            data-action="info"
-                            aria-label="More Info">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"/>
-                            <line x1="12" y1="16" x2="12" y2="12"/>
-                            <line x1="12" y1="8" x2="12.01" y2="8"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-        <div class="tv-card__info">
-            <h3 class="tv-card__title"><?php echo esc_html($data['title']); ?></h3>
-            <div class="tv-card__meta">
-                <?php if ($data['rating']) : ?>
-                    <span class="tv-card__rating">
-                        <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                        <?php echo esc_html($data['rating']); ?>
-                    </span>
-                    <span class="tv-card__meta-dot"></span>
-                <?php endif; ?>
-                <?php if ($data['year']) : ?>
-                    <span><?php echo esc_html(substr($data['year'], 0, 4)); ?></span>
-                    <span class="tv-card__meta-dot"></span>
-                <?php endif; ?>
-                <?php if ($data['seasons']) : ?>
-                    <span><?php printf(esc_html(_n('%d Season', '%d Seasons', $data['seasons'], 'astra-child')), $data['seasons']); ?></span>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-    <?php
-}
+// ============================================================
+// CONTENT SECTIONS DATA
+// ============================================================
 
-function tv_render_episode_card($ep, $watch_base) {
-    $tv_id = (int) get_post_meta($ep->ID, 'tv_show_id', true);
-    $tv_title = $tv_id ? get_the_title($tv_id) : '';
-    $ep_num = get_post_meta($ep->ID, 'episode_number', true) ?: 1;
-    $season_num = get_post_meta($ep->ID, 'season_number', true) ?: 1;
-    $ep_thumb = get_the_post_thumbnail_url($ep->ID, 'medium');
-    $watch_url = add_query_arg('id', $ep->ID, $watch_base);
-    
-    $poster_placeholder = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 330"%3E%3Crect fill="%23111" width="220" height="330"/%3E%3C/svg%3E';
-    ?>
-    <div class="tv-card" data-id="<?php echo esc_attr($ep->ID); ?>" data-href="<?php echo esc_url($watch_url); ?>">
-        <div class="tv-card__poster">
-            <img src="<?php echo esc_url($ep_thumb ?: $poster_placeholder); ?>" 
-                 alt="<?php echo esc_attr($ep->post_title); ?>" 
-                 class="tv-card__img"
-                 loading="lazy">
-            <span class="tv-card__badge">New</span>
-            <span class="tv-card__episode">S<?php echo esc_html($season_num); ?> • E<?php echo esc_html($ep_num); ?></span>
-            <div class="tv-card__overlay">
-                <div class="tv-card__actions">
-                    <button class="tv-card__action tv-card__action--play" 
-                            data-action="play" 
-                            data-href="<?php echo esc_url($watch_url); ?>"
-                            aria-label="Play">
-                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-        <div class="tv-card__info">
-            <h3 class="tv-card__title"><?php echo esc_html($ep->post_title); ?></h3>
-            <div class="tv-card__meta">
-                <span><?php echo esc_html($tv_title); ?></span>
-            </div>
-        </div>
-    </div>
-    <?php
-}
+// Top Rated
+$toprated_q = movie_ui_query([
+    'post_type' => 'tv_show',
+    'posts_per_page' => 30,
+    'meta_key' => '_rating',
+    'orderby' => 'meta_value_num',
+    'order' => 'DESC',
+]);
+$toprated_unique = tv_unique_by_title($toprated_q->posts);
+$toprated_unique = array_slice($toprated_unique, 0, 12);
 
-function tv_render_section($title, $query, $watch_base, $type = 'show') {
-    if (!$query->have_posts()) {
-        wp_reset_postdata();
-        return;
+// New Episodes
+$new_episodes_q = movie_ui_query([
+    'post_type' => 'episode',
+    'posts_per_page' => 12,
+    'orderby' => 'date',
+    'order' => 'DESC',
+]);
+
+// Trending
+$trending_q = movie_ui_query([
+    'post_type' => 'tv_show',
+    'posts_per_page' => 30,
+    'meta_key' => '_view_count',
+    'orderby' => 'meta_value_num',
+    'order' => 'DESC',
+]);
+$trending_unique = tv_unique_by_title($trending_q->posts);
+$trending_unique = array_slice($trending_unique, 0, 12);
+
+// Popular
+$popular_q = movie_ui_query([
+    'post_type' => 'tv_show',
+    'posts_per_page' => 30,
+    'meta_key' => '_view_count',
+    'orderby' => 'meta_value_num',
+    'order' => 'DESC',
+]);
+$popular_unique = tv_unique_by_title($popular_q->posts);
+$popular_unique = array_slice($popular_unique, 0, 12);
+
+// Recently Added
+$recent_q = movie_ui_query([
+    'post_type' => 'tv_show',
+    'posts_per_page' => 30,
+    'orderby' => 'date',
+    'order' => 'DESC',
+]);
+$recent_unique = tv_unique_by_title($recent_q->posts);
+$recent_unique = array_slice($recent_unique, 0, 12);
+
+// Continue Watching
+$continue_ids = [];
+if (is_user_logged_in()) {
+    $user_id = get_current_user_id();
+    $history = get_user_meta($user_id, 'mu_watch_history', true);
+    if (is_array($history) && !empty($history)) {
+        $history_ids = array_keys($history);
+        $continue_q = movie_ui_query([
+            'post_type' => 'tv_show',
+            'post__in' => array_map('intval', $history_ids),
+            'posts_per_page' => 6,
+            'orderby' => 'post__in',
+        ]);
+        $continue_ids = wp_list_pluck($continue_q->posts, 'ID');
     }
-    ?>
-    <section class="tv-section" data-genre="all">
-        <div class="tv-section__header">
-            <h2 class="tv-section__title"><?php echo esc_html($title); ?></h2>
-            <a href="#" class="tv-section__link">
-                View all
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M9 18l6-6-6-6"/>
-                </svg>
-            </a>
-        </div>
-        <div class="tv-swiper">
-            <div class="tv-swiper__wrapper">
-                <?php
-                while ($query->have_posts()) :
-                    $query->the_post();
-                    if ($type === 'show') {
-                        tv_render_card(tv_get_show_data(get_the_ID(), $watch_base));
-                    } else {
-                        tv_render_episode_card(get_post(), $watch_base);
-                    }
-                endwhile;
-                wp_reset_postdata();
-                ?>
-            </div>
-            <button class="tv-swiper__nav tv-swiper__nav--prev" aria-label="Previous">
-                <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
-            </button>
-            <button class="tv-swiper__nav tv-swiper__nav--next" aria-label="Next">
-                <svg viewBox="0 0 24 24"><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>
-            </button>
-        </div>
-    </section>
-    <?php
 }
+
 ?>
 <!DOCTYPE html>
 <html <?php language_attributes(); ?>>
@@ -361,66 +196,59 @@ function tv_render_section($title, $query, $watch_base, $type = 'show') {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?php esc_html_e('TV Shows', 'astra-child'); ?> - <?php bloginfo('name'); ?></title>
     <?php wp_head(); ?>
-    <link rel="stylesheet" href="<?php echo esc_url(get_theme_file_uri('assets/css/movie-ui.css')); ?>">
-    <link rel="stylesheet" href="<?php echo esc_url(get_theme_file_uri('assets/css/ms-tv-shows.css')); ?>">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
-<body class="movie-ui movie-ui--no-sidebar tv-shows-page">
-<?php wp_body_open(); ?>
+<body class="tv-page">
 
-<div class="tv-page">
+<?php get_template_part('template-parts/streaming/header'); ?>
 
-    <!-- ============================================================ -->
-    <!-- HERO SECTION -->
-    <!-- ============================================================ -->
+<div class="tv-wrap">
+
+    <!-- HERO -->
     <?php if (!empty($hero_slides)) : ?>
-    <section class="tv-hero">
-        <div class="tv-hero__slider">
-            <?php foreach ($hero_slides as $i => $slide) : ?>
-            <div class="tv-hero__slide<?php echo $i === 0 ? ' is-active' : ''; ?>" data-index="<?php echo esc_attr($i); ?>">
-                <div class="tv-hero__bg" style="background-image: url('<?php echo esc_url($slide['backdrop']); ?>');"></div>
+    <section class="tv-hero" id="tvHero">
+        <div class="tv-hero__track">
+            <?php foreach ($hero_slides as $si => $slide) : ?>
+            <div class="tv-hero__slide<?php echo $si === 0 ? ' active' : ''; ?>" data-index="<?php echo esc_attr($si); ?>">
+                <div class="tv-hero__bg" style="background-image:url('<?php echo esc_url($slide['backdrop']); ?>')">
+                    <div class="tv-hero__shade"></div>
+                </div>
                 <div class="tv-hero__content">
-                    <div class="tv-hero__badge">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM9 8l7 4-7 4V8z"/></svg>
-                        TV Series
+                    <div class="tv-hero__badges">
+                        <span class="tv-hero__badge">
+                            <span class="tv-hero__badge-dot"></span>
+                            TV SERIES
+                        </span>
+                        <?php if (!empty($slide['genres'])) : ?>
+                        <span class="tv-hero__hd">HD</span>
+                        <?php endif; ?>
                     </div>
                     <h1 class="tv-hero__title"><?php echo esc_html($slide['title']); ?></h1>
                     <div class="tv-hero__meta">
-                        <?php if ($slide['rating']) : ?>
-                            <span class="tv-hero__meta-item tv-hero__meta-item--rating">
-                                <svg viewBox="0 0 24 24" width="14" height="14" fill="#ffd700"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                                <?php echo esc_html($slide['rating']); ?>
-                            </span>
-                            <span class="tv-hero__meta-dot"></span>
+                        <?php if (!empty($slide['rating'])) : ?>
+                        <span class="tv-hero__rating">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="#46d369"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                            <?php echo esc_html($slide['rating']); ?>
+                        </span>
                         <?php endif; ?>
-                        <?php if ($slide['year']) : ?>
-                            <span class="tv-hero__meta-item"><?php echo esc_html(substr($slide['year'], 0, 4)); ?></span>
-                            <span class="tv-hero__meta-dot"></span>
+                        <?php if (!empty($slide['year'])) : ?>
+                        <span class="tv-hero__year"><?php echo esc_html(substr($slide['year'], 0, 4)); ?></span>
                         <?php endif; ?>
-                        <span class="tv-hero__meta-item"><?php printf(esc_html(_n('%d Season', '%d Seasons', $slide['seasons'], 'astra-child')), $slide['seasons']); ?></span>
-                        <?php if ($slide['age']) : ?>
-                            <span class="tv-hero__age"><?php echo esc_html($slide['age']); ?></span>
+                        <span class="tv-hero__seasons"><?php printf(esc_html(_n('%d Season', '%d Seasons', $slide['seasons'], 'astra-child')), $slide['seasons']); ?></span>
+                        <?php if (!empty($slide['age'])) : ?>
+                        <span class="tv-hero__age"><?php echo esc_html($slide['age']); ?></span>
                         <?php endif; ?>
                     </div>
-                    <?php if (!empty($slide['genres'])) : ?>
-                    <div class="tv-hero__genres">
-                        <?php foreach ($slide['genres'] as $genre) : ?>
-                            <span class="tv-hero__genre"><?php echo esc_html($genre); ?></span>
-                        <?php endforeach; ?>
-                    </div>
-                    <?php endif; ?>
                     <p class="tv-hero__desc"><?php echo esc_html($slide['overview']); ?></p>
-                    <div class="tv-hero__actions">
-                        <a href="<?php echo esc_url($slide['watch_url']); ?>" class="tv-hero__btn tv-hero__btn--primary">
-                            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                            Play Now
+                    <div class="tv-hero__buttons">
+                        <a href="<?php echo esc_url($slide['watch_url']); ?>" class="tv-hero__btn tv-hero__btn--play">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                            Play
                         </a>
-                        <a href="<?php echo esc_url($slide['detail_url']); ?>" class="tv-hero__btn tv-hero__btn--secondary">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"/>
-                                <line x1="12" y1="16" x2="12" y2="12"/>
-                                <line x1="12" y1="8" x2="12.01" y2="8"/>
-                            </svg>
+                        <a href="<?php echo esc_url($slide['detail_url']); ?>" class="tv-hero__btn tv-hero__btn--info">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                             More Info
                         </a>
                     </div>
@@ -429,134 +257,372 @@ function tv_render_section($title, $query, $watch_base, $type = 'show') {
             <?php endforeach; ?>
         </div>
         
-        <!-- Navigation Dots -->
-        <?php if (count($hero_slides) > 1) : ?>
         <div class="tv-hero__dots">
-            <?php foreach ($hero_slides as $i => $slide) : ?>
-                <button class="tv-hero__dot<?php echo $i === 0 ? ' is-active' : ''; ?>" data-index="<?php echo esc_attr($i); ?>" aria-label="Go to slide <?php echo esc_attr($i + 1); ?>"></button>
+            <?php foreach ($hero_slides as $si => $slide) : ?>
+            <button class="tv-hero__dot<?php echo $si === 0 ? ' active' : ''; ?>" data-index="<?php echo esc_attr($si); ?>"></button>
             <?php endforeach; ?>
         </div>
-        <?php endif; ?>
     </section>
     <?php endif; ?>
 
-    <!-- ============================================================ -->
-    <!-- GENRE CHIPS -->
-    <!-- ============================================================ -->
-    <div class="tv-genres">
-        <button class="tv-genre-chip is-active" data-genre="">All</button>
-        <?php foreach ($genre_list as $genre) : ?>
-            <button class="tv-genre-chip" data-genre="<?php echo esc_attr($genre['slug']); ?>">
-                <?php echo esc_html($genre['name']); ?>
-            </button>
-        <?php endforeach; ?>
-    </div>
+    <!-- MAIN -->
+    <main class="tv-main">
 
-    <!-- ============================================================ -->
-    <!-- CONTENT SECTIONS -->
-    <!-- ============================================================ -->
-    <div class="tv-content">
-        
-        <?php 
-        // New Episodes Section
-        if ($new_episodes_q->have_posts()) {
-            echo '<section class="tv-section" data-genre="all">';
-            echo '<div class="tv-section__header">';
-            echo '<h2 class="tv-section__title">New Episodes</h2>';
-            echo '</div>';
-            echo '<div class="tv-swiper">';
-            echo '<div class="tv-swiper__wrapper">';
-            
-            while ($new_episodes_q->have_posts()) :
-                $new_episodes_q->the_post();
-                tv_render_episode_card(get_post(), $watch_base);
-            endwhile;
-            wp_reset_postdata();
-            
-            echo '</div>';
-            echo '<button class="tv-swiper__nav tv-swiper__nav--prev" aria-label="Previous">';
-            echo '<svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>';
-            echo '</button>';
-            echo '<button class="tv-swiper__nav tv-swiper__nav--next" aria-label="Next">';
-            echo '<svg viewBox="0 0 24 24"><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>';
-            echo '</button>';
-            echo '</div>';
-            echo '</section>';
-        }
-        ?>
-
-        <?php 
-        // Trending Section
-        tv_render_section('Trending Now', $trending_q, $watch_base, 'show');
-        ?>
-
-        <?php 
-        // Popular Section
-        tv_render_section('Popular TV Shows', $popular_q, $watch_base, 'show');
-        ?>
-
-        <?php 
-        // Top Rated Section
-        tv_render_section('Top Rated', $toprated_q, $watch_base, 'show');
-        ?>
-
-    </div>
-
-    <!-- ============================================================ -->
-    <!-- NETWORKS SECTION -->
-    <!-- ============================================================ -->
-    <section class="tv-networks">
-        <h2 class="tv-networks__title">Streaming Networks</h2>
-        <div class="tv-networks__grid">
-            <div class="tv-network">Netflix</div>
-            <div class="tv-network">HBO Max</div>
-            <div class="tv-network">Disney+</div>
-            <div class="tv-network">Prime Video</div>
-            <div class="tv-network">Hulu</div>
-            <div class="tv-network">Apple TV+</div>
-            <div class="tv-network">AMC</div>
-            <div class="tv-network">FX</div>
-        </div>
-    </section>
-
-    <!-- ============================================================ -->
-    <!-- FEATURES SECTION -->
-    <!-- ============================================================ -->
-    <section class="tv-features">
-        <div class="tv-feature">
-            <div class="tv-feature__icon">
-                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/></svg>
+        <!-- GENRE BAR -->
+        <nav class="tv-genres">
+            <div class="tv-genres__inner">
+                <button class="tv-genre active" data-genre="">All</button>
+                <?php foreach ($all_genres as $g) : ?>
+                <button class="tv-genre" data-genre="<?php echo esc_attr($g->slug); ?>"><?php echo esc_html($g->name); ?></button>
+                <?php endforeach; ?>
             </div>
-            <h3 class="tv-feature__title">New Episodes Weekly</h3>
-            <p class="tv-feature__desc">Fresh content added every week to keep you entertained</p>
-        </div>
-        <div class="tv-feature">
-            <div class="tv-feature__icon">
-                <svg viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM9 8l7 4-7 4V8z"/></svg>
+        </nav>
+
+        <!-- TOP RATED -->
+        <?php if (!empty($toprated_unique)) : ?>
+        <section class="tv-section">
+            <div class="tv-section__head">
+                <h2 class="tv-section__title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#ffd700"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    Top Rated TV Shows
+                </h2>
+                <a href="#" class="tv-section__more">View All</a>
             </div>
-            <h3 class="tv-feature__title">HD Quality</h3>
-            <p class="tv-feature__desc">Crystal clear video with support for 4K Ultra HD</p>
-        </div>
-        <div class="tv-feature">
-            <div class="tv-feature__icon">
-                <svg viewBox="0 0 24 24"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
+            <div class="tv-slider" data-slider="toprated">
+                <div class="tv-slider__track">
+                    <?php foreach ($toprated_unique as $post) : movie_ui_render_movie_card($post->ID); endforeach; ?>
+                </div>
+                <button class="tv-slider__btn tv-slider__btn--prev" aria-label="Previous">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <button class="tv-slider__btn tv-slider__btn--next" aria-label="Next">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
             </div>
-            <h3 class="tv-feature__title">Watch Anywhere</h3>
-            <p class="tv-feature__desc">Enjoy on TV, tablet, phone or laptop anytime</p>
-        </div>
-        <div class="tv-feature">
-            <div class="tv-feature__icon">
-                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+        </section>
+        <?php endif; ?>
+
+        <!-- NEW EPISODES -->
+        <?php if ($new_episodes_q->have_posts()) : ?>
+        <section class="tv-section">
+            <div class="tv-section__head">
+                <h2 class="tv-section__title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    New Episodes
+                </h2>
+                <a href="#" class="tv-section__more">View All</a>
             </div>
-            <h3 class="tv-feature__title">No Commitments</h3>
-            <p class="tv-feature__desc">Cancel anytime. Your choice, no pressure.</p>
+            <div class="tv-slider" data-slider="episodes">
+                <div class="tv-slider__track">
+                    <?php 
+                    while ($new_episodes_q->have_posts()) : $new_episodes_q->the_post();
+                        $ep_id = get_the_ID();
+                        $tv_id = (int) get_post_meta($ep_id, 'tv_show_id', true);
+                        $tv_title = $tv_id ? get_the_title($tv_id) : '';
+                        $ep_num = get_post_meta($ep_id, 'episode_number', true) ?: 1;
+                        $season_num = get_post_meta($ep_id, 'season_number', true) ?: 1;
+                        $thumb = get_the_post_thumbnail_url($ep_id, 'medium');
+                        if (!$thumb && $tv_id) {
+                            $thumb = get_the_post_thumbnail_url($tv_id, 'medium');
+                        }
+                        $watch_url = add_query_arg('id', $ep_id, $watch_base);
+                    ?>
+                    <div class="tv-ep-card">
+                        <a href="<?php echo esc_url($watch_url); ?>" class="tv-ep-card__link">
+                            <div class="tv-ep-card__poster" style="background-image: url('<?php echo esc_url($thumb); ?>')">
+                                <div class="tv-ep-card__overlay">
+                                    <div class="tv-ep-card__play">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                                    </div>
+                                </div>
+                                <span class="tv-ep-card__ep">S<?php echo esc_html($season_num); ?>E<?php echo esc_html($ep_num); ?></span>
+                            </div>
+                            <h3 class="tv-ep-card__title"><?php echo esc_html(get_the_title()); ?></h3>
+                            <p class="tv-ep-card__sub"><?php echo esc_html($tv_title); ?></p>
+                        </a>
+                    </div>
+                    <?php endwhile; wp_reset_postdata(); ?>
+                </div>
+                <button class="tv-slider__btn tv-slider__btn--prev" aria-label="Previous">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <button class="tv-slider__btn tv-slider__btn--next" aria-label="Next">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+            </div>
+        </section>
+        <?php endif; ?>
+
+        <!-- TRENDING -->
+        <?php if (!empty($trending_unique)) : ?>
+        <section class="tv-section">
+            <div class="tv-section__head">
+                <h2 class="tv-section__title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e50914" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                    Trending Now
+                </h2>
+                <a href="#" class="tv-section__more">View All</a>
+            </div>
+            <div class="tv-slider" data-slider="trending">
+                <div class="tv-slider__track">
+                    <?php foreach ($trending_unique as $post) : movie_ui_render_movie_card($post->ID); endforeach; ?>
+                </div>
+                <button class="tv-slider__btn tv-slider__btn--prev" aria-label="Previous">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <button class="tv-slider__btn tv-slider__btn--next" aria-label="Next">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+            </div>
+        </section>
+        <?php endif; ?>
+
+        <!-- POPULAR -->
+        <?php if (!empty($popular_unique)) : ?>
+        <section class="tv-section">
+            <div class="tv-section__head">
+                <h2 class="tv-section__title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                    Popular TV Shows
+                </h2>
+                <a href="#" class="tv-section__more">View All</a>
+            </div>
+            <div class="tv-slider" data-slider="popular">
+                <div class="tv-slider__track">
+                    <?php foreach ($popular_unique as $post) : movie_ui_render_movie_card($post->ID); endforeach; ?>
+                </div>
+                <button class="tv-slider__btn tv-slider__btn--prev" aria-label="Previous">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <button class="tv-slider__btn tv-slider__btn--next" aria-label="Next">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+            </div>
+        </section>
+        <?php endif; ?>
+
+        <!-- NETWORKS -->
+        <section class="tv-section tv-networks">
+            <div class="tv-section__head">
+                <h2 class="tv-section__title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+                    Browse by Network
+                </h2>
+            </div>
+            <div class="tv-network-grid">
+                <div class="tv-network"><span>Netflix</span></div>
+                <div class="tv-network"><span>HBO Max</span></div>
+                <div class="tv-network"><span>Disney+</span></div>
+                <div class="tv-network"><span>Prime</span></div>
+                <div class="tv-network"><span>AMC</span></div>
+                <div class="tv-network"><span>FX</span></div>
+                <div class="tv-network"><span>Apple TV+</span></div>
+                <div class="tv-network"><span>Hulu</span></div>
+            </div>
+        </section>
+
+        <!-- RECENTLY ADDED -->
+        <?php if (!empty($recent_unique)) : ?>
+        <section class="tv-section">
+            <div class="tv-section__head">
+                <h2 class="tv-section__title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg>
+                    Recently Added
+                </h2>
+                <a href="#" class="tv-section__more">View All</a>
+            </div>
+            <div class="tv-slider" data-slider="recent">
+                <div class="tv-slider__track">
+                    <?php foreach ($recent_unique as $post) : movie_ui_render_movie_card($post->ID); endforeach; ?>
+                </div>
+                <button class="tv-slider__btn tv-slider__btn--prev" aria-label="Previous">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <button class="tv-slider__btn tv-slider__btn--next" aria-label="Next">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+            </div>
+        </section>
+        <?php endif; ?>
+
+        <!-- FEATURES -->
+        <section class="tv-features">
+            <div class="tv-feature">
+                <div class="tv-feature__icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <h3 class="tv-feature__title">New Episodes Weekly</h3>
+                <p class="tv-feature__desc">Fresh content added every week</p>
+            </div>
+            <div class="tv-feature">
+                <div class="tv-feature__icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                </div>
+                <h3 class="tv-feature__title">Watch Anywhere</h3>
+                <p class="tv-feature__desc">On TV, phone, tablet, and more</p>
+            </div>
+            <div class="tv-feature">
+                <div class="tv-feature__icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                </div>
+                <h3 class="tv-feature__title">HD Quality</h3>
+                <p class="tv-feature__desc">Crystal clear streaming</p>
+            </div>
+            <div class="tv-feature">
+                <div class="tv-feature__icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                </div>
+                <h3 class="tv-feature__title">No Commitments</h3>
+                <p class="tv-feature__desc">Cancel anytime you want</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="tv-footer">
+        <div class="tv-footer__inner">
+            <div class="tv-footer__brand">
+                <a href="<?php echo esc_url(home_url('/')); ?>" class="tv-footer__logo">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                        <circle cx="16" cy="16" r="15" stroke="#e50914" stroke-width="2"/>
+                        <path d="M12 8L22 16L12 24V8Z" fill="#e50914"/>
+                    </svg>
+                    <span>MOVIE</span>
+                </a>
+            </div>
+            <div class="tv-footer__links">
+                <a href="#">About</a>
+                <a href="#">Help Center</a>
+                <a href="#">Terms of Use</a>
+                <a href="#">Privacy</a>
+                <a href="#">Cookie Preferences</a>
+                <a href="#">Contact Us</a>
+            </div>
+            <div class="tv-footer__social">
+                <a href="#" aria-label="Facebook">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+                </a>
+                <a href="#" aria-label="Twitter">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"/></svg>
+                </a>
+                <a href="#" aria-label="Instagram">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/></svg>
+                </a>
+                <a href="#" aria-label="YouTube">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"/></svg>
+                </a>
+            </div>
+            <p class="tv-footer__copy">&copy; <?php echo date('Y'); ?> <?php bloginfo('name'); ?>. All rights reserved.</p>
         </div>
-    </section>
+    </footer>
 
 </div>
 
+<!-- Toast -->
+<div class="tv-toast" id="tvToast"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Hero Slider
+    const hero = document.getElementById('tvHero');
+    if (hero) {
+        const slides = hero.querySelectorAll('.tv-hero__slide');
+        const dots = hero.querySelectorAll('.tv-hero__dot');
+        let current = 0;
+        let autoplay = setInterval(function() { goTo((current + 1) % slides.length); }, 6000);
+
+        function goTo(idx) {
+            if (slides.length <= 1) return;
+            idx = ((idx % slides.length) + slides.length) % slides.length;
+            slides[current] && slides[current].classList.remove('active');
+            dots[current] && dots[current].classList.remove('active');
+            current = idx;
+            slides[current] && slides[current].classList.add('active');
+            dots[current] && dots[current].classList.add('active');
+        }
+
+        dots.forEach(function(dot, i) {
+            dot.addEventListener('click', function() {
+                clearInterval(autoplay);
+                goTo(i);
+                autoplay = setInterval(function() { goTo((current + 1) % slides.length); }, 6000);
+            });
+        });
+    }
+
+    // Sliders
+    document.querySelectorAll('.tv-slider').forEach(function(slider) {
+        const track = slider.querySelector('.tv-slider__track');
+        const prevBtn = slider.querySelector('.tv-slider__btn--prev');
+        const nextBtn = slider.querySelector('.tv-slider__btn--next');
+        
+        if (!track || !prevBtn || !nextBtn) return;
+
+        function getCardWidth() {
+            const card = track.querySelector('.mu-card');
+            return card ? card.offsetWidth + 16 : 220;
+        }
+
+        function updateArrows() {
+            const maxScroll = track.scrollWidth - track.clientWidth;
+            prevBtn.style.opacity = track.scrollLeft > 10 ? '1' : '0';
+            prevBtn.style.pointerEvents = track.scrollLeft > 10 ? 'auto' : 'none';
+            nextBtn.style.opacity = track.scrollLeft < maxScroll - 10 ? '1' : '0';
+            nextBtn.style.pointerEvents = track.scrollLeft < maxScroll - 10 ? 'auto' : 'none';
+        }
+
+        updateArrows();
+
+        prevBtn.addEventListener('click', function() {
+            track.scrollBy({ left: -getCardWidth() * 3, behavior: 'smooth' });
+        });
+        nextBtn.addEventListener('click', function() {
+            track.scrollBy({ left: getCardWidth() * 3, behavior: 'smooth' });
+        });
+        track.addEventListener('scroll', updateArrows);
+
+        // Drag
+        var isDown = false, startX, scrollLeft;
+        track.addEventListener('mousedown', function(e) {
+            isDown = true;
+            startX = e.pageX - track.offsetLeft;
+            scrollLeft = track.scrollLeft;
+            track.style.cursor = 'grabbing';
+        });
+        track.addEventListener('mouseleave', function() {
+            isDown = false;
+            track.style.cursor = 'grab';
+        });
+        track.addEventListener('mouseup', function() {
+            isDown = false;
+            track.style.cursor = 'grab';
+        });
+        track.addEventListener('mousemove', function(e) {
+            if (!isDown) return;
+            e.preventDefault();
+            track.scrollLeft = scrollLeft - (e.pageX - track.offsetLeft - startX) * 2;
+        });
+    });
+
+    // Genre filter
+    document.querySelectorAll('.tv-genre').forEach(function(chip) {
+        chip.addEventListener('click', function() {
+            document.querySelectorAll('.tv-genre').forEach(function(c) { c.classList.remove('active'); });
+            this.classList.add('active');
+        });
+    });
+
+    // Header scroll
+    var header = document.querySelector('.mu-header');
+    if (header) {
+        window.addEventListener('scroll', function() {
+            header.classList.toggle('scrolled', window.scrollY > 50);
+        });
+    }
+});
+</script>
+
 <?php wp_footer(); ?>
-<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
-<script src="<?php echo esc_url(get_theme_file_uri('assets/js/ms-tv-shows.js')); ?>"></script>
 </body>
 </html>

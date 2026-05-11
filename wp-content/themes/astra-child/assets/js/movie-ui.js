@@ -1273,4 +1273,37 @@
     });
   }());
 
+  document.addEventListener("DOMContentLoaded", function () {
+    const header = document.querySelector(".mu-header");
+    if (!header) return;
+  
+    let lastScrollY = window.scrollY;
+    let ticking = false;
+  
+    function handleHeaderScroll() {
+      const currentScrollY = window.scrollY;
+  
+      if (currentScrollY <= 80) {
+        header.classList.remove("is-hidden");
+        header.classList.remove("is-solid");
+      } else if (currentScrollY > lastScrollY) {
+        // Trượt xuống -> ẩn menu
+        header.classList.add("is-hidden");
+      } else {
+        // Trượt lên -> hiện menu
+        header.classList.remove("is-hidden");
+        header.classList.add("is-solid");
+      }
+  
+      lastScrollY = currentScrollY;
+      ticking = false;
+    }
+  
+    window.addEventListener("scroll", function () {
+      if (!ticking) {
+        window.requestAnimationFrame(handleHeaderScroll);
+        ticking = true;
+      }
+    });
+  });
 }());

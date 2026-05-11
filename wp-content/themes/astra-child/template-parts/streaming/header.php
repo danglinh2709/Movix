@@ -9,7 +9,9 @@ if (!$avatar_url || is_wp_error($avatar_url)) {
     $avatar_url = 'https://secure.gravatar.com/avatar/00000000000000000000000000000000?s=80&d=mm&r=g';
 }
 
-$movies_archive = trailingslashit(home_url('/movies'));
+$movies_archive = function_exists('mu_get_page_url_by_slug')
+    ? mu_get_page_url_by_slug('movies')
+    : trailingslashit(home_url('movies'));
 $tv_archive     = trailingslashit(home_url('/tv'));
 
 $trend_u   = function_exists('mu_get_page_url_by_slug') ? mu_get_page_url_by_slug('trending')     : trailingslashit(home_url('trending'));

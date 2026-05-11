@@ -36,6 +36,19 @@ $is_admin = current_user_can('edit_posts');
 // Video source detection
 $video_sources = [];
 
+// NEW: Check for multiple video sources (JSON format)
+$_video_sources_json = get_post_meta($id, '_video_sources', true);
+if ($_video_sources_json) {
+    $multi_sources = json_decode($_video_sources_json, true);
+    if (is_array($multi_sources)) {
+        foreach ($multi_sources as $src) {
+            if (!empty($src['url'])) {
+                $video_sources['multi_' . $src['id']] = $src['url'];
+            }
+        }
+    }
+}
+
 if ($is_tv) {
     $ep_video_url = get_post_meta($id, 'video_url', true);
     if ($ep_video_url) $video_sources['episode_video_url'] = $ep_video_url;
@@ -276,7 +289,8 @@ $player_settings = [
     <!-- PLAYER SECTION -->
     <!-- ============================================================ -->
     <div class="mu-player-wrapper" data-post-id="<?php echo esc_attr($id); ?>" data-post-type="<?php echo esc_attr($post_type); ?>">
-        <div class="mu-player-container">
+        <?php $all_sources = json_decode(get_post_meta($id, '_video_sources', true), true) ?: []; ?>
+        <div class="mu-player-container" data-sources='<?php echo esc_attr(wp_json_encode($all_sources)); ?>'>
             
             <?php if ($video_type === 'iframe') : ?>
                 <div class="mu-player-iframe-container">
@@ -288,6 +302,20 @@ $player_settings = [
                         <track kind="subtitles" srclang="<?php echo esc_attr(substr(get_locale(), 0, 2)); ?>" label="<?php esc_attr_e('Subtitles', 'astra-child'); ?>" src="<?php echo esc_url($sub_vtt); ?>">
                     <?php endif; ?>
                 </video>
+                <?php if (!empty($all_sources)) : ?>
+                <div class="mu-player-sources">
+                    <span class="mu-player-sources__label">Quality:</span>
+                    <div class="mu-player-sources__btns">
+                        <?php foreach ($all_sources as $idx => $src) : ?>
+                            <button type="button" class="mu-player-source-btn <?php echo $idx === 0 ? 'active' : ''; ?>" 
+                                    data-src="<?php echo esc_url($src['url']); ?>" 
+                                    data-quality="<?php echo esc_attr($src['quality'] ?? 'auto'); ?>">
+                                <?php echo esc_html(strtoupper($src['quality'] ?? 'Auto')); ?>
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
             <?php elseif ($video_type === 'youtube') : ?>
                 <iframe class="mu-player-iframe" src="<?php echo esc_url($primary_video); ?>" title="<?php echo esc_attr($title); ?>" allowfullscreen></iframe>
             <?php else : ?>

@@ -1135,3 +1135,53 @@ body.mu-watch-page {
 .mu-watch-page ::-webkit-scrollbar-thumb:hover {
   background: var(--mu-bg-4);
 }
+
+/* ============================================================
+   VIDEO QUALITY SELECTOR
+   ============================================================ */
+.mu-player-sources {
+    position: absolute;
+    bottom: 80px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 100;
+}
+
+.mu-player-sources__label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+}
+
+.mu-player-sources__btns {
+    display: flex;
+    gap: 6px;
+}
+
+.mu-player-source-btn {
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mu-player-source-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.mu-player-source-btn.active {
+    background: var(--mu-accent);
+    border-color: var(--mu-accent);
+}
+
+.mu-player-source-btn.active:hover {
+    background: var(--mu-accent-hover);
+}

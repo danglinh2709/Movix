@@ -20,8 +20,48 @@
       initVideoPlayer(video);
     }
     
+    initQualitySelector();
     initActions();
     initKeyboardShortcuts();
+  }
+
+  // ============================================================
+  // VIDEO QUALITY SELECTOR
+  // ============================================================
+  function initQualitySelector() {
+    const container = document.querySelector('.mu-player-container');
+    if (!container) return;
+    
+    const sourcesData = container.dataset.sources;
+    if (!sourcesData || sourcesData === '[]') return;
+    
+    const sourceBtns = document.querySelectorAll('.mu-player-source-btn');
+    const video = document.getElementById('mu-player-video');
+    
+    sourceBtns.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const newSrc = btn.dataset.src;
+        const quality = btn.dataset.quality;
+        
+        if (!newSrc || !video) return;
+        
+        // Update UI
+        sourceBtns.forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        
+        // Save current time
+        const currentTime = video.currentTime || 0;
+        const wasPaused = video.paused;
+        
+        // Switch source
+        video.src = newSrc;
+        video.currentTime = currentTime;
+        
+        if (!wasPaused) {
+          video.play().catch(function() {});
+        }
+      });
+    });
   }
 
   // ============================================================

@@ -5,6 +5,55 @@
  * ============================================================
  */
 
+/* ============================================================
+   GLOBAL RESET - Critical for header button/button styles
+   ============================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+button {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+button::-moz-focus-inner {
+  border: 0;
+  padding: 0;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--mu-accent, #e50914);
+  outline-offset: 2px;
+}
+
+input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img, svg {
+  display: block;
+  max-width: 100%;
+}
+
 :root {
   --mu-bg-0: #050505;
   --mu-bg-1: #0a0a0a;
@@ -809,7 +858,8 @@ body.admin-bar .mu-notifications-backdrop {
   max-height: 900px;
   overflow: hidden;
   background: var(--mu-bg-0);
-  margin-top: -64px;
+  /* margin-top: -64px; */
+  margin-top: 84px;
 }
 
 .mu-hero__track {
@@ -2482,139 +2532,189 @@ body.admin-bar .mu-notifications-backdrop {
   padding: 0 0 12px;
 }
 
-/* ===== MOVIE HEADER REDESIGN ===== */
+/* ===== MOVIE HEADER — unified premium glass header ===== */
 
 .mu-header {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
+  z-index: 1200;
   height: 72px;
-  z-index: 9999;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.92),
-    rgba(0, 0, 0, 0.68),
-    rgba(0, 0, 0, 0)
-  );
-  backdrop-filter: blur(8px);
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.68) 0%,
+      rgba(0, 0, 0, 0.42) 55%,
+      rgba(0, 0, 0, 0.12) 100%
+    );
+  backdrop-filter: blur(22px) saturate(160%) brightness(0.9);
+  -webkit-backdrop-filter: blur(22px) saturate(160%) brightness(0.9);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 10px 34px rgba(0, 0, 0, 0.42),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+  transition:
+    background 0.35s ease,
+    backdrop-filter 0.35s ease,
+    box-shadow 0.35s ease,
+    transform 0.28s ease;
+}
+
+/* Bottom glow fade into hero */
+.mu-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -28px;
+  height: 28px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0));
+}
+
+.mu-header.is-solid {
+  background:
+    linear-gradient(to bottom, rgba(5, 5, 5, 0.92) 0%, rgba(5, 5, 5, 0.82) 100%) !important;
+  backdrop-filter: blur(26px) saturate(170%) brightness(0.86) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(170%) brightness(0.86) !important;
+  box-shadow: 0 14px 42px rgba(0, 0, 0, 0.68), inset 0 -1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+.mu-header.is-hidden {
+  transform: translateY(-100%);
+}
+
+/* Hero pushes down behind header */
+.mu-hero {
+  margin-top: 72px;
 }
 
 .mu-header__inner {
-  max-width: 1440px;
-  margin: 0 auto;
   height: 72px;
-  padding: 0 48px;
+  width: min(1440px, calc(100% - 96px));
+  margin: 0 auto;
   display: flex;
   align-items: center;
-  gap: 32px;
+  gap: 26px;
 }
 
-/* Logo */
+/* Brand / Logo */
 .mu-brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #fff;
-  text-decoration: none;
   flex-shrink: 0;
+  text-decoration: none;
 }
 
 .mu-brand__mark {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: #e50914;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  font-size: 24px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ff0712, #b00610);
+  box-shadow: 0 0 22px rgba(229, 9, 20, 0.5);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  font-size: 22px;
-  font-weight: 800;
-  box-shadow: 0 10px 25px rgba(229, 9, 20, 0.35);
 }
 
 .mu-brand__text {
   font-size: 24px;
-  font-weight: 800;
-  letter-spacing: 1px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #fff;
 }
 
-/* Navigation */
+/* Main Nav */
 .mu-nav {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 20px;
+  margin-left: 24px;
   flex: 1;
 }
 
 .mu-nav a {
   position: relative;
-  color: rgba(255, 255, 255, 0.78);
-  text-decoration: none;
+  padding: 8px 2px;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.72);
+  background: transparent;
+  text-decoration: none;
   transition: color 0.2s ease;
+  white-space: nowrap;
 }
 
 .mu-nav a:hover,
-.mu-nav a.is-active,
-.mu-nav .current-menu-item > a {
+.mu-nav a.is-active {
   color: #fff;
 }
 
-.mu-nav a::after {
+.mu-nav a.is-active::after {
   content: "";
   position: absolute;
+  bottom: -9px;
   left: 50%;
-  bottom: -12px;
-  width: 0;
+  transform: translateX(-50%);
+  width: 20px;
   height: 3px;
   border-radius: 999px;
-  background: #e50914;
-  transform: translateX(-50%);
-  transition: width 0.2s ease;
+  background: var(--mu-accent);
+  box-shadow: 0 0 14px rgba(229, 9, 20, 0.8);
 }
 
-.mu-nav a:hover::after,
-.mu-nav a.is-active::after,
-.mu-nav .current-menu-item > a::after {
-  width: 18px;
-}
-
-/* Header actions */
+/* Right Actions */
 .mu-header__actions {
+  margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-left: auto;
+  gap: 14px;
   flex-shrink: 0;
 }
 
-/* Icon buttons */
-.mu-icon-btn {
-  width: 42px;
-  height: 42px;
-  min-width: 42px;
-  max-width: 42px;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+/* Icon Buttons */
+.mu-icon-btn,
+.mu-avatar-btn {
+  width: 44px;
+  height: 44px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   color: #fff;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
   cursor: pointer;
-  flex: 0 0 auto;
   transition: all 0.2s ease;
 }
 
-.mu-icon-btn:hover {
-  background: rgba(229, 9, 20, 0.95);
-  border-color: rgba(229, 9, 20, 0.95);
-  transform: translateY(-1px);
+.mu-icon-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0;
+}
+
+.mu-icon-btn--search,
+.mu-icon-btn--bell {
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+
+.mu-icon-btn:hover,
+.mu-avatar-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.32);
+  transform: translateY(-1px) scale(1.04);
 }
 
 .mu-icon-btn svg {
@@ -2623,18 +2723,7 @@ body.admin-bar .mu-notifications-backdrop {
   display: block;
 }
 
-/* Fix riêng nút Search + Bell đang bị xanh/to */
-.mu-icon-btn--search,
-.mu-icon-btn--bell {
-  width: 42px !important;
-  height: 42px !important;
-  min-width: 42px !important;
-  max-width: 42px !important;
-  background: rgba(255, 255, 255, 0.08) !important;
-  border-radius: 999px !important;
-}
-
-/* Badge thông báo */
+/* Notification Badge */
 .mu-icon-badge {
   position: absolute;
   top: 4px;
@@ -2643,7 +2732,7 @@ body.admin-bar .mu-notifications-backdrop {
   height: 16px;
   padding: 0 4px;
   border-radius: 999px;
-  background: #e50914;
+  background: var(--mu-accent);
   color: #fff;
   font-size: 10px;
   font-weight: 700;
@@ -2657,24 +2746,19 @@ body.admin-bar .mu-notifications-backdrop {
 }
 
 /* Avatar */
-.mu-user-avatar,
-.mu-avatar,
-.mu-header__avatar {
-  width: 42px;
-  height: 42px;
-  border-radius: 999px;
+.mu-avatar-btn {
   overflow: hidden;
-  border: 2px solid rgba(255, 255, 255, 0.38);
-  background: rgba(255, 255, 255, 0.12);
-  flex-shrink: 0;
+  padding: 0;
 }
 
-.mu-user-avatar img,
-.mu-avatar img,
-.mu-header__avatar img {
+.mu-avatar,
+.mu-avatar-btn .mu-avatar {
   width: 100%;
   height: 100%;
+  border-radius: 999px;
   object-fit: cover;
+  border: none;
+  display: block;
 }
 
 /* Mobile */
@@ -2716,12 +2800,60 @@ body.admin-bar .mu-notifications-backdrop {
   .mu-icon-btn,
   .mu-icon-btn--search,
   .mu-icon-btn--bell,
-  .mu-user-avatar,
-  .mu-avatar,
-  .mu-header__avatar {
-    width: 38px !important;
-    height: 38px !important;
-    min-width: 38px !important;
-    max-width: 38px !important;
+  .mu-avatar-btn {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    max-width: 38px;
   }
+}
+/* ============================================================
+   FIX GLOBAL: Smaller back-to-top button on all pages
+   ============================================================ */
+
+#ast-scroll-top,
+.ast-scroll-top-icon,
+.back-to-top,
+.scroll-to-top,
+a[href="#top"] {
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+
+    right: 32px !important;
+    bottom: 32px !important;
+
+    padding: 0 !important;
+    border-radius: 5px !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    font-size: 13px !important;
+    line-height: 1 !important;
+}
+
+#ast-scroll-top svg,
+.ast-scroll-top-icon svg,
+.back-to-top svg,
+.scroll-to-top svg,
+a[href="#top"] svg {
+    width: 13px !important;
+    height: 13px !important;
+    margin: 0 !important;
+}
+
+#ast-scroll-top::before,
+#ast-scroll-top::after,
+.ast-scroll-top-icon::before,
+.ast-scroll-top-icon::after,
+.back-to-top::before,
+.scroll-to-top::before,
+a[href="#top"]::before {
+    font-size: 13px !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+    transform: none !important;
 }

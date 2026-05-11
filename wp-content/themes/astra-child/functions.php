@@ -19,6 +19,7 @@ require_once __DIR__ . '/inc/movie-system/importer-media.php';
 require_once __DIR__ . '/inc/movie-system/importer-actions.php';
 require_once __DIR__ . '/inc/movie-system/importer-admin.php';
 require_once __DIR__ . '/inc/movie-system/auto-pages.php';
+require_once __DIR__ . '/inc/movie-system/video-sources-admin.php';
 
 // Theme supports
 add_action('after_setup_theme', function () {
@@ -308,6 +309,11 @@ add_action('wp_enqueue_scripts', function () {
     $search_ver = filemtime($dir . '/assets/css/ms-search.css') ?: $ver;
     wp_enqueue_style('ms-search', $uri . '/assets/css/ms-search.css', ['movie-ui'], $search_ver);
     wp_enqueue_script('ms-search', $uri . '/assets/js/ms-search.js', ['movie-ui'], $search_ver, true);
+
+    // Premium OTT TV Shows page assets
+    $tv_ver = filemtime($dir . '/assets/css/ms-tv-shows.css') ?: $ver;
+    wp_enqueue_style('ms-tv-shows', $uri . '/assets/css/ms-tv-shows.css', ['movie-ui'], $tv_ver);
+    wp_enqueue_script('ms-tv-shows', $uri . '/assets/js/ms-tv-shows.js', ['movie-ui'], $tv_ver, true);
 
     wp_localize_script('movie-ui', 'MOVIE_UI', [
         'ajaxUrl' => admin_url('admin-ajax.php'),

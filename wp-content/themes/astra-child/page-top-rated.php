@@ -813,7 +813,7 @@ $ajax_nonce = wp_create_nonce('mu_toprated_ajax');
         <?php // Results Info ?>
         <div class="toprated-results-info">
             <span class="toprated-results-count">
-                <?php
+                            <?php
                 if ($total_count > 0) {
                     printf(
                         esc_html__('Showing %1$d–%2$d of %3$d titles', 'astra-child'),
@@ -821,17 +821,17 @@ $ajax_nonce = wp_create_nonce('mu_toprated_ajax');
                         $showing_end,
                         $total_count
                     );
-                } else {
+                            } else {
                     esc_html_e('No titles found', 'astra-child');
-                }
-                ?>
+                            }
+                            ?>
             </span>
         </div>
 
         <?php // Ranked Grid ?>
         <div class="toprated-grid" id="topratedGrid">
             <?php if ($toprated_q->have_posts()) : ?>
-                <?php 
+        <?php
                 $rank = $current_rank;
                 while ($toprated_q->have_posts()) : $toprated_q->the_post();
                     $pid = get_the_ID();
@@ -911,7 +911,7 @@ $ajax_nonce = wp_create_nonce('mu_toprated_ajax');
                             </div>
                         </div>
                     </article>
-                <?php 
+                <?php
                 $rank++;
                 endwhile;
                 wp_reset_postdata();

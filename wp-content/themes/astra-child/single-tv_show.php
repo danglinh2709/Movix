@@ -31,17 +31,39 @@ while (have_posts()) :
     }
     $genre_text = implode(', ', $genre_links);
     
-    // Cast
-    $cast = wp_get_post_terms($id, 'actor', ['fields' => 'all']);
+    // Cast - Read from _cast meta (with profile images from TMDB)
     $cast_data = [];
-    foreach (array_slice($cast, 0, 12) as $actor) {
-        $actor_img = get_term_meta($actor->term_id, 'image', true);
-        $cast_data[] = [
-            'name' => $actor->name,
-            'slug' => $actor->slug,
-            'image' => $actor_img ?: '',
-            'character' => '',
-        ];
+    $saved_cast = get_post_meta($id, '_cast', true);
+    if ($saved_cast) {
+        $saved_cast = json_decode($saved_cast, true);
+        foreach (array_slice($saved_cast, 0, 12) as $actor) {
+            $profile_url = '';
+            if (!empty($actor['profile_path'])) {
+                $profile_url = 'https://image.tmdb.org/t/p/w185' . $actor['profile_path'];
+            } elseif (!empty($actor['profile_image_id'])) {
+                $profile_url = wp_get_attachment_url($actor['profile_image_id']);
+            }
+            $cast_data[] = [
+                'name' => $actor['name'] ?? '',
+                'slug' => sanitize_title($actor['name'] ?? ''),
+                'image' => $profile_url,
+                'character' => $actor['character'] ?? '',
+            ];
+        }
+    }
+    
+    // Fallback: try taxonomy if no cast data
+    if (empty($cast_data)) {
+        $cast = wp_get_post_terms($id, 'actor', ['fields' => 'all']);
+        foreach (array_slice($cast, 0, 12) as $actor) {
+            $actor_img = get_term_meta($actor->term_id, 'image', true);
+            $cast_data[] = [
+                'name' => $actor->name,
+                'slug' => $actor->slug,
+                'image' => $actor_img ?: '',
+                'character' => '',
+            ];
+        }
     }
     
     // Director
@@ -65,6 +87,12 @@ while (have_posts()) :
     
     // Video URLs
     $trailer = movie_ui_meta($id, ['trailer_url', '_trailer_url'], '');
+    
+    // Get all clips (from local storage or fetch from TMDB)
+    $all_clips = [];
+    if (function_exists('mu_get_clips_for_post')) {
+        $all_clips = mu_get_clips_for_post($id, 12);
+    }
     
     // Content
     $content = get_the_content();
@@ -184,7 +212,7 @@ while (have_posts()) :
 /* Cast */
 .mdetail-cast { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 20px; }
 .mdetail-cast-card { text-align: center; }
-.mdetail-cast-card__img { width: 100%; aspect-ratio: 1; border-radius: 12px; object-fit: cover; background: rgba(255,255,255,0.05); margin-bottom: 10px; }
+.mdetail-cast-card__img { width: 100%; aspect-ratio: 1; border-radius: 12px; object-fit: cover; background: linear-gradient(135deg, #1a1a2e 0%, #2d2d44 100%); margin-bottom: 10px; }
 .mdetail-cast-card__name { font-size: 0.85rem; font-weight: 600; color: #fff; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mdetail-cast-card__char { font-size: 0.75rem; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mdetail-empty { text-align: center; padding: 40px 20px; color: rgba(255,255,255,0.4); }
@@ -281,6 +309,108 @@ while (have_posts()) :
 .mdetail-tab.is-active::after {
   display: none !important;
 }
+
+/* Clips Grid */
+.mdetail-clips-grid {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    gap: 24px;
+}
+
+@media (max-width: 900px) {
+    .mdetail-clips-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Main Clip Player */
+.mdetail-clip-main { margin-bottom: 24px; }
+.mdetail-clip-player {
+    position: relative;
+    aspect-ratio: 16/9;
+    background: #1a1a1a;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+}
+.mdetail-clip-thumb { width: 100%; height: 100%; object-fit: cover; }
+.mdetail-clip-play-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.9);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, background 0.2s;
+}
+.mdetail-clip-play-btn:hover { transform: translate(-50%, -50%) scale(1.1); background: #fff; }
+.mdetail-clip-play-btn svg { width: 28px; height: 28px; fill: #000; margin-left: 4px; }
+.mdetail-clip-duration {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    background: rgba(0,0,0,0.7);
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    text-transform: capitalize;
+}
+.mdetail-clip-main h4 { margin-top: 12px; color: #fff; font-size: 1.1rem; }
+
+/* Clips List */
+.mdetail-clips-list { max-height: 500px; overflow-y: auto; }
+.mdetail-clip-item {
+    display: flex;
+    gap: 12px;
+    padding: 10px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.mdetail-clip-item:hover { background: rgba(255,255,255,0.1); }
+.mdetail-clip-item__thumb {
+    position: relative;
+    width: 120px;
+    flex-shrink: 0;
+    aspect-ratio: 16/9;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.mdetail-clip-item__thumb img { width: 100%; height: 100%; object-fit: cover; }
+.mdetail-clip-item__play {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.3);
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.mdetail-clip-item:hover .mdetail-clip-item__play { opacity: 1; }
+.mdetail-clip-item__play svg { width: 24px; height: 24px; fill: #fff; }
+.mdetail-clip-item__info { display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+.mdetail-clip-item__title {
+    color: #fff;
+    font-size: 0.9rem;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin: 0;
+}
+.mdetail-clip-item__type { color: rgba(255,255,255,0.5); font-size: 0.75rem; text-transform: capitalize; }
 </style>
 
 <div class="mdetail-page">
@@ -408,9 +538,10 @@ while (have_posts()) :
             <button class="mdetail-tab is-active" data-tab="overview"><?php esc_html_e('Overview', 'astra-child'); ?></button>
             <button class="mdetail-tab" data-tab="episodes"><?php esc_html_e('Episodes', 'astra-child'); ?></button>
             <button class="mdetail-tab" data-tab="cast"><?php esc_html_e('Cast', 'astra-child'); ?></button>
+            <button class="mdetail-tab" data-tab="trailers"><?php esc_html_e('Trailers & Clips', 'astra-child'); ?></button>
         </div>
     </nav>
-    
+
     <?php // Overview Tab ?>
     <div class="mdetail-tab-content is-active" id="tab-overview">
         <div class="mdetail-overview__text"><?php echo wp_kses_post($overview ?: __('No overview available.', 'astra-child')); ?></div>
@@ -508,7 +639,7 @@ while (have_posts()) :
                         <?php if ($actor['image']) : ?>
                             <img src="<?php echo esc_url($actor['image']); ?>" alt="<?php echo esc_attr($actor['name']); ?>" class="mdetail-cast-card__img" loading="lazy">
                         <?php else : ?>
-                            <div class="mdetail-cast-card__img" style="display:flex;align-items:center;justify-content:center;font-size:2rem;color:rgba(255,255,255,0.3);">
+                            <div class="mdetail-cast-card__img" style="display:flex;align-items:center;justify-content:center;font-size:2rem;color:rgba(255,255,255,0.4);background:linear-gradient(135deg, #1a1a2e 0%, #2d2d44 100%);">
                                 <?php echo esc_html(substr($actor['name'], 0, 1)); ?>
                             </div>
                         <?php endif; ?>
@@ -522,6 +653,62 @@ while (have_posts()) :
         <?php else : ?>
             <div class="mdetail-empty">
                 <p><?php esc_html_e('Cast information is not available yet.', 'astra-child'); ?></p>
+            </div>
+        <?php endif; ?>
+    </div>
+    
+    <?php // Trailers & Clips Tab ?>
+    <div class="mdetail-tab-content" id="tab-trailers">
+        <?php if (!empty($all_clips)) : ?>
+            <div class="mdetail-clips-grid">
+                <?php 
+                $main_clip = !empty($all_clips) ? $all_clips[0] : null;
+                $other_clips = array_slice($all_clips, 1);
+                ?>
+                
+                <?php if ($main_clip) : ?>
+                    <div class="mdetail-clip-main">
+                        <div class="mdetail-clip-player" id="tvMainClipPlayer">
+                            <img src="<?php echo esc_url($main_clip['thumbnail_hd'] ?? $main_clip['thumbnail']); ?>" alt="<?php echo esc_attr($main_clip['name']); ?>" class="mdetail-clip-thumb">
+                            <button class="mdetail-clip-play-btn" onclick="tvPlayClip('<?php echo esc_url($main_clip['embed_url']); ?>')">
+                                <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            </button>
+                            <span class="mdetail-clip-duration"><?php echo esc_html($main_clip['type']); ?></span>
+                        </div>
+                        <h4><?php echo esc_html($main_clip['name']); ?></h4>
+                    </div>
+                <?php endif; ?>
+                
+                <?php if (!empty($other_clips)) : ?>
+                    <div class="mdetail-clips-list">
+                        <h4 style="margin-bottom:15px;">More Clips (<?php echo count($other_clips); ?>)</h4>
+                        <?php foreach ($other_clips as $clip) : ?>
+                            <div class="mdetail-clip-item" onclick="tvPlayClip('<?php echo esc_url($clip['embed_url']); ?>')">
+                                <div class="mdetail-clip-item__thumb">
+                                    <img src="<?php echo esc_url($clip['thumbnail']); ?>" alt="<?php echo esc_attr($clip['name']); ?>">
+                                    <div class="mdetail-clip-item__play">
+                                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                    </div>
+                                </div>
+                                <div class="mdetail-clip-item__info">
+                                    <p class="mdetail-clip-item__title"><?php echo esc_html($clip['name']); ?></p>
+                                    <span class="mdetail-clip-item__type"><?php echo esc_html(ucfirst($clip['type'])); ?></span>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        <?php elseif ($trailer) : ?>
+            <div style="text-align:center; padding:40px;">
+                <button class="mdetail-btn mdetail-btn--primary" type="button" onclick="openTrailerModal('<?php echo esc_attr($trailer); ?>')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    <?php esc_html_e('Play Trailer', 'astra-child'); ?>
+                </button>
+            </div>
+        <?php else : ?>
+            <div class="mdetail-empty">
+                <p><?php esc_html_e('Trailers and clips are not available.', 'astra-child'); ?></p>
             </div>
         <?php endif; ?>
     </div>
@@ -604,6 +791,14 @@ while (have_posts()) :
     window.toggleSeason = function(header) {
         var season = header.closest('.mdetail-season');
         season.classList.toggle('is-open');
+    };
+    
+    // CLIP PLAYER
+    window.tvPlayClip = function(embedUrl) {
+        var player = document.getElementById('tvMainClipPlayer');
+        if (player) {
+            player.innerHTML = '<iframe src="' + embedUrl + '?autoplay=1" frameborder="0" allowfullscreen allow="autoplay" style="width:100%;height:100%;position:absolute;top:0;left:0;"></iframe>';
+        }
     };
     
     // FAVORITE

@@ -1171,7 +1171,7 @@ $ajax_nonce = wp_create_nonce('mu_mylist_ajax');
                     <?php endif; ?>
                 </div>
                 <div class="mylist-scroll-row" id="savedTvRow">
-                    <?php
+            <?php
                     $tv_ids = array_filter($saved_ids, function($pid) {
                         return get_post_type($pid) === 'tv_show';
                     });
@@ -1272,7 +1272,7 @@ $ajax_nonce = wp_create_nonce('mu_mylist_ajax');
             
         </div>
     </div>
-</div>
+            </div>
 
 <?php // =====================================================================
       // TRAILER MODAL - Uses global mu-trailer-modal styles from movie-ui.css

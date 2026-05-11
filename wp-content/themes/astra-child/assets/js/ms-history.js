@@ -1,636 +1,597 @@
 /**
  * ============================================================
- * Premium OTT Watch History Page JavaScript
- * Handles history items, filters, actions, and modals
+ * Watch History Page JavaScript
+ * Handles filtering, rendering, modals, interactions
  * ============================================================
  */
-(function () {
-  'use strict';
+(function() {
+    'use strict';
 
-  // ============================================================
-  // UTILITY FUNCTIONS
-  // ============================================================
-  const $ = (sel, root = document) => root.querySelector(sel);
-  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-
-  function debounce(fn, wait) {
-    let t;
-    return (...args) => {
-      clearTimeout(t);
-      t = setTimeout(() => fn(...args), wait);
-    };
-  }
-
-  function localStorageGet(key, fallback) {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : fallback;
-    } catch (e) {
-      return fallback;
-    }
-  }
-
-  function localStorageSet(key, val) {
-    try {
-      localStorage.setItem(key, JSON.stringify(val));
-    } catch (e) {}
-  }
-
-  function localStorageRemove(key) {
-    try {
-      localStorage.removeItem(key);
-    } catch (e) {}
-  }
-
-  // ============================================================
-  // STATE
-  // ============================================================
-  const state = {
-    currentFilter: 'all',
-    currentType: 'all',
-    currentDateFilter: 'all',
-    page: 1,
-    perPage: 10,
-    totalItems: 0,
-    isLoading: false,
-    historyData: []
-  };
-
-  // ============================================================
-  // ELEMENTS
-  // ============================================================
-  let elements = {};
-
-  function initElements() {
-    elements = {
-      container: $('.mu-history-container'),
-      filterList: $$('.mu-history-filter-link'),
-      contentArea: $('.mu-history-content-area'),
-      clearAllBtn: $('#mu-history-clear-all'),
-      modal: $('#mu-history-modal'),
-      modalBackdrop: $('.mu-history-modal-backdrop'),
-      modalCancel: $('#mu-history-modal-cancel'),
-      modalConfirm: $('#mu-history-modal-confirm'),
-      modalTitle: $('.mu-history-modal-title'),
-      modalDesc: $('.mu-history-modal-desc'),
-      emptyState: $('.mu-history-empty'),
-      emptyStateBtns: $$('.mu-history-empty-btn'),
-      loadMoreBtn: $('#mu-history-load-more'),
-      loadMoreInfo: $('.mu-history-load-more-info'),
-      statsItems: $('.mu-history-stat-value'),
-      historyList: $('.mu-history-list')
-    };
-  }
-
-  // ============================================================
-  // DATA MANAGEMENT
-  // ============================================================
-  function getHistoryFromStorage() {
-    return localStorageGet('mu_progress', {});
-  }
-
-  function removeFromHistory(postId) {
-    const progress = getHistoryFromStorage();
-    delete progress[postId];
-    localStorageSet('mu_progress', progress);
-  }
-
-  function clearAllHistory() {
-    localStorageRemove('mu_progress');
-  }
-
-  function getHistoryItems() {
-    const progress = getHistoryFromStorage();
-    const items = Object.entries(progress).map(([postId, data]) => ({
-      postId: parseInt(postId),
-      currentTime: data.t || 0,
-      duration: data.d || 0,
-      percent: data.d > 0 ? Math.round((data.t / data.d) * 100) : 0,
-      lastWatched: data.updatedAt ? new Date(data.updatedAt) : new Date()
-    }));
-
-    // Sort by last watched (newest first)
-    items.sort((a, b) => b.lastWatched - a.lastWatched);
-
-    return items;
-  }
-
-  function groupItemsByDate(items) {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterday = new Date(today.getTime() - 86400000);
-    const weekAgo = new Date(today.getTime() - 7 * 86400000);
-    const monthAgo = new Date(today.getTime() - 30 * 86400000);
-
-    const groups = {
-      today: [],
-      yesterday: [],
-      last7days: [],
-      last30days: [],
-      older: []
+    var state = {
+        items: [],
+        filteredItems: [],
+        currentCategory: 'all',
+        currentTime: 'all',
+        page: 1,
+        perPage: 15
     };
 
-    items.forEach(item => {
-      const itemDate = new Date(item.lastWatched.getFullYear(), item.lastWatched.getMonth(), item.lastWatched.getDate());
+    /* ============================================================
+       INIT
+       ============================================================ */
+    function init() {
+        var data = window.MU_HISTORY_DATA || {};
+        state.items = Object.values(data);
 
-      if (itemDate.getTime() === today.getTime()) {
-        groups.today.push(item);
-      } else if (itemDate.getTime() === yesterday.getTime()) {
-        groups.yesterday.push(item);
-      } else if (itemDate > weekAgo) {
-        groups.last7days.push(item);
-      } else if (itemDate > monthAgo) {
-        groups.last30days.push(item);
-      } else {
-        groups.older.push(item);
-      }
-    });
-
-    return groups;
-  }
-
-  // ============================================================
-  // FILTER FUNCTIONS
-  // ============================================================
-  function setActiveFilter(filter) {
-    state.currentFilter = filter;
-
-    // Update filter UI
-    $$('.mu-history-filter-link').forEach(link => {
-      link.classList.toggle('is-active', link.dataset.filter === filter);
-    });
-
-    // Reset pagination
-    state.page = 1;
-    renderHistory();
-  }
-
-  function getFilteredItems() {
-    let items = getHistoryItems();
-
-    // Filter by type (all, movie, tv)
-    if (state.currentFilter === 'movies') {
-      items = items.filter(item => getPostType(item.postId) === 'movie');
-    } else if (state.currentFilter === 'tv') {
-      items = items.filter(item => getPostType(item.postId) === 'tv_show');
-    }
-
-    // Filter by date
-    const groups = groupItemsByDate(items);
-
-    switch (state.currentDateFilter) {
-      case 'today':
-        return groups.today;
-      case 'yesterday':
-        return groups.yesterday;
-      case 'last7days':
-        return [...groups.today, ...groups.yesterday, ...groups.last7days];
-      case 'last30days':
-        return [...groups.today, ...groups.yesterday, ...groups.last7days, ...groups.last30days];
-      case 'older':
-        return groups.older;
-      default:
-        return items;
-    }
-  }
-
-  function getPostType(postId) {
-    // Try to get from cached data
-    const cached = window.MU_HISTORY_DATA?.[postId];
-    if (cached) return cached.type;
-
-    // Default to movie
-    return 'movie';
-  }
-
-  // ============================================================
-  // RENDER FUNCTIONS
-  // ============================================================
-  function formatTimeAgo(date) {
-    const now = new Date();
-    const diff = now - date;
-    const seconds = Math.floor(diff / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-
-    if (days > 7) {
-      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-    } else if (days > 0) {
-      return days === 1 ? 'Yesterday' : `${days} days ago`;
-    } else if (hours > 0) {
-      return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
-    } else if (minutes > 0) {
-      return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
-    } else {
-      return 'Just now';
-    }
-  }
-
-  function formatDuration(seconds) {
-    if (!seconds || seconds < 60) return '';
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    if (h > 0) {
-      return `${h}h ${m}m`;
-    }
-    return `${m}m`;
-  }
-
-  function renderHistoryItem(item) {
-    const movieData = window.MU_HISTORY_DATA?.[item.postId];
-    if (!movieData) return '';
-
-    const title = movieData.title || 'Untitled';
-    const type = movieData.type === 'tv_show' ? 'TV Show' : 'Movie';
-    const year = movieData.year || '';
-    const runtime = movieData.runtime || '';
-    const genres = movieData.genres || [];
-    const thumb = movieData.thumb || '';
-    const watchUrl = movieData.watchUrl || '#';
-    const detailUrl = movieData.detailUrl || '#';
-
-    const isCompleted = item.percent >= 95;
-    const progressText = isCompleted ? 'Completed' : `${item.percent}%`;
-
-    return `
-      <div class="mu-history-item" data-post-id="${item.postId}">
-        <a href="${watchUrl}" class="mu-history-item-thumb">
-          <img src="${thumb}" alt="${title}" loading="lazy" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 140 80%22%3E%3Crect fill=%22%231a1a1a%22 width=%22140%22 height=%2280%22/%3E%3C/svg%3E'">
-          <span class="mu-history-item-badge">${type}</span>
-          <div class="mu-history-item-thumb-overlay">
-            <div class="mu-history-item-play-icon">
-              <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-            </div>
-          </div>
-        </a>
-        <div class="mu-history-item-info">
-          <a href="${detailUrl}" class="mu-history-item-title">${title}</a>
-          <div class="mu-history-item-meta">
-            ${year ? `<span class="mu-history-item-meta-item">${year}</span>` : ''}
-            ${runtime ? `<span class="mu-history-item-meta-dot"></span><span class="mu-history-item-meta-item">${runtime}</span>` : ''}
-          </div>
-          ${genres.length > 0 ? `
-            <div class="mu-history-item-genres">
-              ${genres.slice(0, 3).map(g => `<span class="mu-history-item-genre">${g}</span>`).join('')}
-            </div>
-          ` : ''}
-          <div class="mu-history-item-progress-wrap">
-            <div class="mu-history-item-progress-bar">
-              <div class="mu-history-item-progress-fill ${isCompleted ? 'is-completed' : ''}" style="width: ${item.percent}%"></div>
-            </div>
-            <span class="mu-history-item-progress-text ${isCompleted ? 'is-completed' : ''}">${progressText}</span>
-          </div>
-          <span class="mu-history-item-time">Watched ${formatTimeAgo(item.lastWatched)}</span>
-        </div>
-        <div class="mu-history-item-actions">
-          <button type="button" class="mu-history-item-menu-btn" aria-label="Actions" data-menu-toggle>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-            </svg>
-          </button>
-          <div class="mu-history-item-menu" data-menu>
-            <a href="${watchUrl}" class="mu-history-item-menu-item" data-action="resume">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              Resume
-            </a>
-            <a href="${detailUrl}" class="mu-history-item-menu-item" data-action="details">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-              View Details
-            </a>
-            <button type="button" class="mu-history-item-menu-item" data-action="fav" data-post-id="${item.postId}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
-              Add to My List
-            </button>
-            <button type="button" class="mu-history-item-menu-item is-danger" data-action="remove" data-post-id="${item.postId}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-              Remove from History
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  function renderHistoryGroup(title, items) {
-    if (!items || items.length === 0) return '';
-
-    return `
-      <div class="mu-history-group">
-        <h3 class="mu-history-group-title">${title}</h3>
-        <div class="mu-history-group-items">
-          ${items.map(item => renderHistoryItem(item)).join('')}
-        </div>
-      </div>
-    `;
-  }
-
-  function renderHistory() {
-    if (!elements.historyList) return;
-
-    const filteredItems = getFilteredItems();
-    state.totalItems = filteredItems.length;
-
-    // Group by date
-    const groups = groupItemsByDate(filteredItems);
-
-    // Calculate pagination
-    const start = (state.page - 1) * state.perPage;
-    const end = start + state.perPage;
-
-    // Get items for current page
-    let paginatedItems = [];
-    let current = 0;
-    const allGroups = [
-      { key: 'today', items: groups.today, label: 'Today' },
-      { key: 'yesterday', items: groups.yesterday, label: 'Yesterday' },
-      { key: 'last7days', items: groups.last7days, label: 'Last 7 Days' },
-      { key: 'last30days', items: groups.last30days, label: 'Last 30 Days' },
-      { key: 'older', items: groups.older, label: 'Older' }
-    ];
-
-    // Build paginated groups
-    let html = '';
-    for (const group of allGroups) {
-      if (group.items.length === 0) continue;
-
-      const groupItems = [];
-      for (const item of group.items) {
-        if (current >= start && current < end) {
-          groupItems.push(item);
-        }
-        current++;
-        if (current >= end) break;
-      }
-
-      if (groupItems.length > 0) {
-        html += renderHistoryGroup(group.label, groupItems);
-      }
-
-      if (current >= end) break;
-    }
-
-    // Show empty state or history
-    if (filteredItems.length === 0) {
-      elements.historyList.innerHTML = '';
-      if (elements.emptyState) {
-        elements.emptyState.style.display = 'flex';
-      }
-      if (elements.loadMoreBtn) {
-        elements.loadMoreBtn.style.display = 'none';
-      }
-    } else {
-      if (elements.emptyState) {
-        elements.emptyState.style.display = 'none';
-      }
-      if (state.page === 1) {
-        elements.historyList.innerHTML = html;
-      } else {
-        elements.historyList.innerHTML += html;
-      }
-
-      // Update load more
-      if (elements.loadMoreBtn) {
-        const showing = Math.min(end, state.totalItems);
-        elements.loadMoreBtn.style.display = current < state.totalItems ? 'inline-flex' : 'none';
-        if (elements.loadMoreInfo) {
-          elements.loadMoreInfo.textContent = `Showing ${start + 1}–${showing} of ${state.totalItems}`;
-        }
-      }
-
-      // Reattach menu events
-      initMenuEvents();
-    }
-
-    // Update filter counts
-    updateFilterCounts();
-  }
-
-  function updateFilterCounts() {
-    const allItems = getHistoryItems();
-    const counts = {
-      all: allItems.length,
-      movies: allItems.filter(i => getPostType(i.postId) === 'movie').length,
-      tv: allItems.filter(i => getPostType(i.postId) === 'tv_show').length,
-      today: groupItemsByDate(allItems).today.length,
-      yesterday: groupItemsByDate(allItems).yesterday.length
-    };
-
-    $$('[data-count]').forEach(el => {
-      const key = el.dataset.count;
-      if (counts[key] !== undefined) {
-        el.textContent = counts[key];
-      }
-    });
-  }
-
-  // ============================================================
-  // MENU HANDLING
-  // ============================================================
-  function initMenuEvents() {
-    $$('[data-menu-toggle]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        // Close other menus
-        $$('.mu-history-item-menu.is-open').forEach(menu => {
-          if (menu !== btn.nextElementSibling) {
-            menu.classList.remove('is-open');
-          }
+        // Sort newest first
+        state.items.sort(function(a, b) {
+            var ta = a.progress && a.progress.updatedAt || 0;
+            var tb = b.progress && b.progress.updatedAt || 0;
+            return tb - ta;
         });
 
-        // Toggle this menu
-        btn.nextElementSibling?.classList.toggle('is-open');
-      });
-    });
+        state.filteredItems = [...state.items];
 
-    // Menu item actions
-    $$('[data-action]').forEach(item => {
-      item.addEventListener('click', (e) => {
-        e.preventDefault();
-        const action = item.dataset.action;
-        const postId = item.dataset.postId;
-
-        // Close menu
-        item.closest('.mu-history-item-menu')?.classList.remove('is-open');
-
-        switch (action) {
-          case 'resume':
-            window.location.href = item.closest('.mu-history-item')?.querySelector('.mu-history-item-thumb')?.href || '#';
-            break;
-          case 'details':
-            window.location.href = item.href || '#';
-            break;
-          case 'remove':
-            removeHistoryItem(postId);
-            break;
-          case 'fav':
-            toggleFavorite(postId);
-            break;
-        }
-      });
-    });
-  }
-
-  function removeHistoryItem(postId) {
-    removeFromHistory(postId);
-
-    // Animate out
-    const itemEl = document.querySelector(`.mu-history-item[data-post-id="${postId}"]`);
-    if (itemEl) {
-      itemEl.style.opacity = '0';
-      itemEl.style.transform = 'translateX(-20px)';
-      itemEl.style.transition = 'all 0.3s ease';
-
-      setTimeout(() => {
+        updateAllCounts();
         renderHistory();
-      }, 300);
-    }
-  }
 
-  function toggleFavorite(postId) {
-    const favs = new Set(localStorageGet('mu_favorites', []));
-    const isAdding = !favs.has(String(postId));
-
-    if (isAdding) {
-      favs.add(String(postId));
-    } else {
-      favs.delete(String(postId));
+        bindEvents();
     }
 
-    localStorageSet('mu_favorites', Array.from(favs));
+    /* ============================================================
+       RENDER HISTORY LIST
+       ============================================================ */
+    function renderHistory() {
+        applyFilters();
 
-    // Update button text
-    const menuItem = document.querySelector(`[data-action="fav"][data-post-id="${postId}"]`);
-    if (menuItem) {
-      const span = menuItem.querySelector('span') || document.createElement('span');
-      span.textContent = isAdding ? 'Remove from My List' : 'Add to My List';
-      menuItem.innerHTML = menuItem.innerHTML.replace(/Add to My List|Remove from My List/, isAdding ? 'Remove from My List' : 'Add to My List');
-    }
+        var list = document.getElementById('histList');
+        var empty = document.getElementById('histEmpty');
+        var loadMore = document.getElementById('histLoadMore');
 
-    // Sync to server if logged in
-    if (window.MOVIE_UI?.isLoggedIn) {
-      syncFavoriteToServer(postId, isAdding);
-    }
-  }
+        if (!list) return;
 
-  function syncFavoriteToServer(postId, isAdding) {
-    const fd = new FormData();
-    fd.append('action', 'toggle_favorite');
-    fd.append('movie_id', postId);
-    fd.append('nonce', window.MOVIE_UI.favNonce || '');
-
-    fetch(window.MOVIE_UI.ajaxUrl || '/wp-admin/admin-ajax.php', {
-      method: 'POST',
-      body: fd,
-      credentials: 'same-origin'
-    }).catch(() => {});
-  }
-
-  // ============================================================
-  // MODAL HANDLING
-  // ============================================================
-  function openModal(title, desc, onConfirm) {
-    if (!elements.modal) return;
-
-    elements.modalTitle.textContent = title;
-    elements.modalDesc.textContent = desc;
-
-    elements.modalConfirm.onclick = () => {
-      if (onConfirm) onConfirm();
-      closeModal();
-    };
-
-    elements.modal.classList.add('is-open');
-    document.body.style.overflow = 'hidden';
-  }
-
-  function closeModal() {
-    if (!elements.modal) return;
-    elements.modal.classList.remove('is-open');
-    document.body.style.overflow = '';
-  }
-
-  // ============================================================
-  // EVENT LISTENERS
-  // ============================================================
-  function setupEventListeners() {
-    // Filter clicks
-    $$('.mu-history-filter-link').forEach(link => {
-      link.addEventListener('click', (e) => {
-        e.preventDefault();
-        const filter = link.dataset.filter;
-        if (filter) {
-          setActiveFilter(filter);
+        if (state.filteredItems.length === 0) {
+            list.innerHTML = '';
+            if (empty) empty.style.display = 'flex';
+            if (loadMore) loadMore.style.display = 'none';
+            return;
         }
-      });
-    });
 
-    // Clear all button
-    elements.clearAllBtn?.addEventListener('click', () => {
-      const count = state.totalItems;
-      openModal(
-        'Clear All History?',
-        `Are you sure you want to clear all ${count} items from your watch history? This cannot be undone.`,
-        () => {
-          clearAllHistory();
-          renderHistory();
+        if (empty) empty.style.display = 'none';
+
+        // Paginate
+        var pageItems = state.filteredItems.slice(0, state.page * state.perPage);
+        var groups = groupByDate(pageItems);
+        var html = '';
+
+        for (var dateKey in groups) {
+            if (!groups.hasOwnProperty(dateKey)) continue;
+            html += '<div class="hist-group">';
+            html += '<h3 class="hist-group__title">' + escapeHtml(dateKey) + '</h3>';
+            groups[dateKey].forEach(function(item) {
+                html += renderItem(item);
+            });
+            html += '</div>';
         }
-      );
-    });
 
-    // Modal close on backdrop
-    elements.modalBackdrop?.addEventListener('click', closeModal);
+        list.innerHTML = html;
 
-    // Modal cancel button
-    elements.modalCancel?.addEventListener('click', closeModal);
+        // Load more button
+        if (loadMore) {
+            var total = state.filteredItems.length;
+            var showing = Math.min(state.page * state.perPage, total);
+            var info = loadMore.querySelector('.hist-load-more__info');
+            if (total > state.perPage) {
+                loadMore.style.display = 'flex';
+                if (info) info.textContent = 'Showing ' + showing + ' of ' + total + ' titles';
+            } else {
+                loadMore.style.display = 'none';
+            }
+        }
 
-    // Load more
-    elements.loadMoreBtn?.addEventListener('click', () => {
-      state.page++;
-      renderHistory();
-    });
+        bindItemEvents();
+    }
 
-    // Empty state buttons
-    $$('.mu-history-empty-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        window.location.href = btn.dataset.href || '/';
-      });
-    });
+    /* ============================================================
+       RENDER SINGLE ITEM
+       ============================================================ */
+    function renderItem(item) {
+        var id = item.id;
+        var title = escapeHtml(item.title || 'Untitled');
+        var thumb = item.thumb || '';
+        var type = item.type || 'movie';
+        var typeLabel = type === 'movie' ? 'Movie' : (type === 'tv_show' ? 'TV Show' : 'Episode');
+        var year = item.year || '';
+        var runtime = item.runtime || '';
+        var genres = (item.genres || []).slice(0, 2).join(', ');
+        var watchUrl = escapeHtml(item.watchUrl || '#');
+        var detailUrl = escapeHtml(item.detailUrl || '#');
+        var percent = item.progress && item.progress.percent || 0;
+        var currentTime = item.progress && item.progress.currentTime || 0;
+        var duration = item.progress && item.progress.duration || 0;
+        var completed = percent >= 95;
 
-    // Close menus on outside click
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('.mu-history-item-menu') && !e.target.closest('[data-menu-toggle]')) {
-        $$('.mu-history-item-menu.is-open').forEach(menu => {
-          menu.classList.remove('is-open');
+        var typeClass = type === 'movie' ? 'movie' : 'tv';
+        var fillClass = completed ? ' is-completed' : '';
+        var resumeLabel = completed ? 'Rewatch' : 'Resume';
+
+        var progressText = percent + '%';
+        if (currentTime && duration) {
+            var watched = formatTime(currentTime);
+            var total = formatTime(duration);
+            progressText = percent + '% · ' + watched + ' / ' + total;
+        }
+
+        var html = '<div class="hist-item" data-id="' + id + '" data-watch="' + watchUrl + '" data-detail="' + detailUrl + '">';
+
+        // Poster
+        html += '<a href="' + watchUrl + '" class="hist-item__poster" ' +
+                'style="background-image: url(\'' + escapeHtml(thumb) + '\')"' +
+                'onclick="event.stopPropagation(); event.preventDefault(); window.location.href=\'' + watchUrl + '\'">';
+        html += '<div class="hist-item__poster-overlay">';
+        html += '<div class="hist-item__play-icon">';
+        html += '<svg width="16" height="16" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+        html += '</div></div>';
+        html += '</a>';
+
+        // Body
+        html += '<div class="hist-item__body">';
+        html += '<h4 class="hist-item__title">' + title + '</h4>';
+
+        // Meta row
+        html += '<div class="hist-item__meta">';
+        html += '<span class="hist-item__type-badge' + (type === 'movie' ? ' hist-item__type-badge--movie' : '') + '">' + typeLabel + '</span>';
+        if (year) html += '<span class="hist-item__meta-item">' + year + '</span>';
+        if (runtime) html += '<span class="hist-item__meta-item">' + runtime + 'm</span>';
+        if (genres) {
+            html += '<span class="hist-item__meta-item">' + escapeHtml(genres) + '</span>';
+        }
+        html += '</div>';
+
+        // Progress
+        html += '<div class="hist-item__progress-section">';
+        html += '<div class="hist-item__progress-bar"><div class="hist-item__progress-fill' + fillClass + '" style="width:' + percent + '%"></div></div>';
+        html += '<div class="hist-item__progress-info">';
+        html += '<span class="hist-item__progress-text' + (completed ? ' is-completed' : '') + '">' + progressText + '</span>';
+        html += '<span class="hist-item__resume-btn">' + resumeLabel + '</span>';
+        html += '</div></div>';
+        html += '</div>';
+
+        // Actions
+        html += '<div class="hist-item__actions">';
+        html += '<button class="hist-item__menu-btn" data-menu-id="' + id + '" aria-label="Actions">';
+        html += '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
+        html += '</button></div>';
+
+        html += '</div>';
+
+        return html;
+    }
+
+    /* ============================================================
+       GROUP BY DATE
+       ============================================================ */
+    function groupByDate(items) {
+        var groups = {};
+        var now = new Date();
+        var today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        var yesterday = today - 86400000;
+        var lastWeek = today - 7 * 86400000;
+        var lastMonth = today - 30 * 86400000;
+
+        items.forEach(function(item) {
+            var timestamp = item.progress && item.progress.updatedAt || 0;
+            var date = new Date(timestamp);
+            var midnight = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+
+            var label;
+            if (midnight >= today) {
+                label = 'Today';
+            } else if (midnight >= yesterday) {
+                label = 'Yesterday';
+            } else if (midnight >= lastWeek) {
+                label = 'Last 7 Days';
+            } else if (midnight >= lastMonth) {
+                label = 'Last 30 Days';
+            } else {
+                label = 'Older';
+            }
+
+            if (!groups[label]) groups[label] = [];
+            groups[label].push(item);
         });
-      }
-    });
 
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        closeModal();
-      }
-    });
-  }
+        // Order groups
+        var ordered = {};
+        ['Today', 'Yesterday', 'Last 7 Days', 'Last 30 Days', 'Older'].forEach(function(key) {
+            if (groups[key]) ordered[key] = groups[key];
+        });
 
-  // ============================================================
-  // INITIALIZE
-  // ============================================================
-  function init() {
-    initElements();
-    setupEventListeners();
-    renderHistory();
-  }
+        return ordered;
+    }
 
-  // Run when DOM is ready
-  if (document.readyState === 'loading') {
+    /* ============================================================
+       APPLY FILTERS
+       ============================================================ */
+    function applyFilters() {
+        var filtered = state.items.filter(function(item) {
+            // Category filter
+            if (state.currentCategory !== 'all' && item.type !== state.currentCategory) {
+                return false;
+            }
+
+            // Time filter
+            if (state.currentTime !== 'all') {
+                var timestamp = item.progress && item.progress.updatedAt || 0;
+                var now = Date.now();
+                var date = new Date(timestamp);
+                var midnight = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+                var today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+                var yesterday = today - 86400000;
+                var lastWeek = today - 7 * 86400000;
+                var lastMonth = today - 30 * 86400000;
+
+                var match = false;
+                switch (state.currentTime) {
+                    case 'today':     match = midnight >= today; break;
+                    case 'yesterday':  match = midnight >= yesterday && midnight < today; break;
+                    case 'last7days': match = midnight >= lastWeek; break;
+                    case 'last30days': match = midnight >= lastMonth; break;
+                    case 'older':     match = midnight < lastMonth; break;
+                }
+                if (!match) return false;
+            }
+
+            return true;
+        });
+
+        state.filteredItems = filtered;
+        state.page = 1;
+    }
+
+    /* ============================================================
+       UPDATE ALL COUNTS
+       ============================================================ */
+    function updateAllCounts() {
+        var counts = {
+            all: state.items.length,
+            movie: 0,
+            tv_show: 0,
+            today: 0,
+            yesterday: 0,
+            last7days: 0,
+            last30days: 0,
+            older: 0
+        };
+
+        var now = Date.now();
+        var today = new Date(new Date(now).getFullYear(), new Date(now).getMonth(), new Date(now).getDate()).getTime();
+        var yesterday = today - 86400000;
+        var lastWeek = today - 7 * 86400000;
+        var lastMonth = today - 30 * 86400000;
+
+        state.items.forEach(function(item) {
+            var type = item.type || 'movie';
+            if (type === 'movie') counts.movie++;
+            else counts.tv_show++;
+
+            var timestamp = item.progress && item.progress.updatedAt || 0;
+            var date = new Date(timestamp);
+            var midnight = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+
+            if (midnight >= today) counts.today++;
+            else if (midnight >= yesterday) counts.yesterday++;
+            else if (midnight >= lastWeek) counts.last7days++;
+            else if (midnight >= lastMonth) counts.last30days++;
+            else counts.older++;
+        });
+
+        // Update sidebar counts
+        document.querySelectorAll('.hist-filter-btn__count[data-count]').forEach(function(el) {
+            var key = el.dataset.count;
+            if (counts.hasOwnProperty(key)) {
+                el.textContent = counts[key];
+            }
+        });
+
+        // Update stats panel
+        var total = state.items.length;
+        var movies = counts.movie;
+        var tv = counts.tv_show;
+        var completed = 0;
+
+        state.items.forEach(function(item) {
+            var percent = item.progress && item.progress.percent || 0;
+            if (percent >= 95) completed++;
+        });
+
+        var statTotal = document.getElementById('statTotal');
+        var statMovies = document.getElementById('statMovies');
+        var statTV = document.getElementById('statTV');
+        var statCompleted = document.getElementById('statCompleted');
+
+        if (statTotal) statTotal.textContent = total;
+        if (statMovies) statMovies.textContent = movies;
+        if (statTV) statTV.textContent = tv;
+        if (statCompleted) statCompleted.textContent = completed;
+    }
+
+    /* ============================================================
+       BIND GLOBAL EVENTS
+       ============================================================ */
+    function bindEvents() {
+        // Sidebar filter buttons
+        document.querySelectorAll('.hist-filter-btn[data-filter]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var filter = this.dataset.filter;
+
+                // Determine category vs time
+                if (['all', 'movie', 'tv_show'].indexOf(filter) !== -1) {
+                    // Category filter
+                    state.currentCategory = filter;
+                    state.currentTime = 'all';
+                } else {
+                    // Time filter
+                    state.currentTime = filter;
+                    // Keep current category
+                }
+
+                // Update active states (within same group only)
+                var group = this.closest('.hist-filter-list') || this.closest('.hist-sidebar');
+                if (group) {
+                    group.querySelectorAll('.hist-filter-btn').forEach(function(b) {
+                        b.classList.remove('is-active');
+                    });
+                }
+                this.classList.add('is-active');
+
+                renderHistory();
+            });
+        });
+
+        // Settings button
+        var settingsBtn = document.querySelector('[data-action="settings"]');
+        if (settingsBtn) {
+            settingsBtn.addEventListener('click', function() {
+                openModal('histSettingsModal');
+            });
+        }
+
+        // Clear All button
+        var clearBtn = document.getElementById('histClearAll');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                openModal('histModal');
+            });
+        }
+
+        var cancelBtn = document.getElementById('histModalCancel');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', function() { closeModal('histModal'); });
+        }
+
+        var settingsClose = document.getElementById('histSettingsClose');
+        if (settingsClose) {
+            settingsClose.addEventListener('click', function() { closeModal('histSettingsModal'); });
+        }
+
+        // Modal: backdrop click to close (for any modal with .hist-modal__backdrop)
+        document.addEventListener('click', function(e) {
+            var modal = e.target.closest('.hist-modal.is-open');
+            if (modal && e.target.classList.contains('hist-modal__backdrop')) {
+                var modalId = modal.id;
+                closeModal(modalId);
+            }
+        });
+
+        // Modal: confirm clear
+        var confirmBtn = document.getElementById('histModalConfirm');
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', function() {
+                closeModal('histModal');
+                clearAllHistory();
+            });
+        }
+
+        // Load more
+        var loadMoreBtn = document.getElementById('histLoadMoreBtn');
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', function() {
+                state.page++;
+                renderHistory();
+            });
+        }
+
+        // Close dropdown on outside click
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.hist-item__menu-btn') && !e.target.closest('.hist-dropdown')) {
+                closeDropdown();
+            }
+        });
+
+        // Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal('histModal');
+                closeModal('histSettingsModal');
+                closeDropdown();
+            }
+        });
+    }
+
+    /* ============================================================
+       BIND ITEM-SPECIFIC EVENTS (re-called after render)
+       ============================================================ */
+    function bindItemEvents() {
+        // Resume button click
+        document.querySelectorAll('.hist-item__resume-btn').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var item = this.closest('.hist-item');
+                if (item) {
+                    var watchUrl = item.dataset.watch;
+                    if (watchUrl) window.location.href = watchUrl;
+                }
+            });
+        });
+
+        // Card click -> detail page
+        document.querySelectorAll('.hist-item').forEach(function(item) {
+            item.addEventListener('click', function(e) {
+                if (e.target.closest('.hist-item__menu-btn') || e.target.closest('.hist-item__resume-btn')) return;
+                var detailUrl = this.dataset.detail;
+                if (detailUrl) window.location.href = detailUrl;
+            });
+        });
+
+        // Menu button -> dropdown
+        document.querySelectorAll('.hist-item__menu-btn').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var id = this.dataset.menuId;
+                var rect = this.getBoundingClientRect();
+                var dropdown = document.getElementById('histDropdown');
+
+                if (dropdown.classList.contains('is-open') && dropdown.dataset.activeId === id) {
+                    closeDropdown();
+                    return;
+                }
+
+                // Position dropdown
+                dropdown.style.top = (rect.bottom + 8) + 'px';
+                dropdown.style.right = (window.innerWidth - rect.right) + 'px';
+                dropdown.style.left = 'auto';
+                dropdown.dataset.activeId = id;
+                dropdown.classList.add('is-open');
+                dropdown.setAttribute('aria-hidden', 'false');
+
+                // Setup action handlers
+                setupDropdownActions(id);
+            });
+        });
+    }
+
+    /* ============================================================
+       DROPDOWN ACTIONS
+       ============================================================ */
+    function setupDropdownActions(id) {
+        var dropdown = document.getElementById('histDropdown');
+
+        // Clone to remove old listeners
+        var newDropdown = dropdown.cloneNode(true);
+        dropdown.parentNode.replaceChild(newDropdown, dropdown);
+
+        newDropdown.querySelectorAll('.hist-dropdown__item').forEach(function(item) {
+            item.addEventListener('click', function() {
+                var action = this.dataset.action;
+                closeDropdown();
+
+                var targetItem = state.items.find(function(i) { return String(i.id) === String(id); });
+                if (!targetItem) return;
+
+                switch (action) {
+                    case 'continue':
+                        if (targetItem.watchUrl) window.location.href = targetItem.watchUrl;
+                        break;
+                    case 'details':
+                        if (targetItem.detailUrl) window.location.href = targetItem.detailUrl;
+                        break;
+                    case 'addlist':
+                        showToast('Added to My List');
+                        break;
+                    case 'remove':
+                        removeItem(id);
+                        break;
+                }
+            });
+        });
+    }
+
+    function closeDropdown() {
+        var dropdown = document.getElementById('histDropdown');
+        if (dropdown) {
+            dropdown.classList.remove('is-open');
+            dropdown.setAttribute('aria-hidden', 'true');
+            dropdown.dataset.activeId = '';
+        }
+    }
+
+    /* ============================================================
+       REMOVE SINGLE ITEM
+       ============================================================ */
+    function removeItem(id) {
+        state.items = state.items.filter(function(item) {
+            return String(item.id) !== String(id);
+        });
+        updateAllCounts();
+        renderHistory();
+        showToast('Removed from history');
+    }
+
+    /* ============================================================
+       CLEAR ALL HISTORY
+       ============================================================ */
+    function clearAllHistory() {
+        state.items = [];
+        state.filteredItems = [];
+        updateAllCounts();
+        renderHistory();
+        showToast('All history cleared');
+    }
+
+    /* ============================================================
+       MODAL
+       ============================================================ */
+    function openModal(id) {
+        var modal = document.getElementById(id);
+        if (modal) {
+            modal.classList.add('is-open');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    function closeModal(id) {
+        var modal = document.getElementById(id);
+        if (modal) {
+            modal.classList.remove('is-open');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    /* ============================================================
+       TOAST
+       ============================================================ */
+    function showToast(msg) {
+        var toast = document.getElementById('histToast');
+        if (!toast) return;
+        toast.textContent = msg;
+        toast.classList.add('is-visible');
+        clearTimeout(toast._timer);
+        toast._timer = setTimeout(function() {
+            toast.classList.remove('is-visible');
+        }, 2800);
+    }
+
+    /* ============================================================
+       UTILITIES
+       ============================================================ */
+    function escapeHtml(str) {
+        if (!str) return '';
+        var d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    function formatTime(seconds) {
+        if (!seconds) return '0:00';
+        var m = Math.floor(seconds / 60);
+        var s = seconds % 60;
+        return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    /* ============================================================
+       BOOT
+       ============================================================ */
     document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
 
 })();
