@@ -1138,190 +1138,868 @@
   }
 }
 /* ============================================================
-   FIX: History page header overlap + safe side spacing
+   CONTENT LAYOUT - safe spacing from edges from edges
+   These rules only adjust page content positioning,
+   NOT the header (header styles come from movie-ui.css).
    ============================================================ */
 
-   body.hist-page .hist-wrap {
-    padding-top: 76px !important;
-    background: #0b0b0b !important;
-  }
-  
-  /* Không để nội dung dính sát mép */
-  body.hist-page .hist-header,
-  body.hist-page .hist-stats,
-  body.hist-page .hist-layout {
-    margin-left: 28px !important;
-    margin-right: 28px !important;
-  }
-  
-  /* Bo nhẹ stats để đỡ cứng */
-  body.hist-page .hist-stats {
-    border-radius: 10px 10px 0 0 !important;
-    overflow: hidden !important;
-  }
-  
-  /* Sidebar và content cũng thở hơn */
-  body.hist-page .hist-sidebar {
-    border-radius: 0 0 0 10px !important;
-  }
-  
-  body.hist-page .hist-content {
-    border-radius: 0 0 10px 0 !important;
-  }
-  
-  /* Mobile */
-  @media (max-width: 768px) {
-    body.hist-page .hist-wrap {
-      padding-top: 68px !important;
-    }
-  
-    body.hist-page .hist-header,
-    body.hist-page .hist-stats,
-    body.hist-page .hist-layout {
-      margin-left: 14px !important;
-      margin-right: 14px !important;
-    }
-  }
-
-  /* ============================================================
-   FIX: Header safe spacing from screen edges
-   ============================================================ */
-
-body.hist-page .mu-header__inner {
-  width: auto !important;
-  max-width: none !important;
-
-  margin-left: 28px !important;
-  margin-right: 28px !important;
-
-  padding-left: 0 !important;
-  padding-right: 0 !important;
+body.hist-page .hist-wrap {
+    padding-top: 72px;
+    background: #0b0b0b;
 }
 
-/* Nếu logo vẫn sát trái do header wrapper */
-body.hist-page .mu-header {
-  padding-left: 0 !important;
-  padding-right: 0 !important;
+body.hist-page .hist-header,
+body.hist-page .hist-stats,
+body.hist-page .hist-layout {
+    margin-left: 28px;
+    margin-right: 28px;
+}
+
+body.hist-page .hist-stats {
+    border-radius: 10px 10px 0 0;
+    overflow: hidden;
+}
+
+body.hist-page .hist-sidebar {
+    border-radius: 0 0 0 10px;
+}
+
+body.hist-page .hist-content {
+    border-radius: 0 0 10px 0;
 }
 
 /* Mobile */
 @media (max-width: 768px) {
-  body.hist-page .mu-header__inner {
-    margin-left: 14px !important;
-    margin-right: 14px !important;
-  }
+    body.hist-page .hist-wrap {
+        padding-top: 66px;
+    }
+
+    body.hist-page .hist-header,
+    body.hist-page .hist-stats,
+    body.hist-page .hist-layout {
+        margin-left: 14px;
+        margin-right: 14px;
+    }
 }
+
 /* ============================================================
-   FIX: Watch History header giống Home
+   FIX: Make Watch History header exactly like Home header
+   Source: movie-ui.css header style
    ============================================================ */
 
-   body.hist-page .mu-header {
-    height: 76px !important;
-    background: rgba(5, 5, 5, 0.96) !important;
-    backdrop-filter: blur(18px) !important;
-    -webkit-backdrop-filter: blur(18px) !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45) !important;
+   body.hist-page {
+    --mu-gutter: min(1440px, calc(100% - 5vw));
+    --mu-accent: #e50914;
+    --mu-bg-2: #111111;
+    --mu-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   
+  /* Header wrapper */
+  body.hist-page .mu-header {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 1200 !important;
+  
+    height: auto !important;
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.82) 0%,
+      rgba(0, 0, 0, 0.4) 40%,
+      rgba(0, 0, 0, 0) 100%
+    ) !important;
+  
+    box-shadow: none !important;
+    border-bottom: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  
+  /* Khi scroll xuống */
+  body.hist-page .mu-header.is-solid,
+  body.hist-page .mu-header.scrolled {
+    background: #111111 !important;
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.5) !important;
+  }
+  
+  /* Header inner */
   body.hist-page .mu-header__inner {
-    height: 76px !important;
-    width: calc(100% - 96px) !important;
-    max-width: none !important;
+    height: 60px !important;
+    width: var(--mu-gutter) !important;
+    max-width: var(--mu-gutter) !important;
     margin: 0 auto !important;
-    padding: 0 !important;
   
     display: flex !important;
     align-items: center !important;
-    gap: 28px !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+  
+    padding: 0 !important;
   }
   
-  /* Logo giống Home */
+  /* Logo */
   body.hist-page .mu-brand {
-    gap: 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
     flex-shrink: 0 !important;
+    text-decoration: none !important;
   }
   
   body.hist-page .mu-brand__mark {
-    width: 54px !important;
-    height: 54px !important;
-    border-radius: 14px !important;
-    font-size: 26px !important;
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 6px !important;
+  
+    display: grid !important;
+    place-items: center !important;
+  
+    background: #e50914 !important;
+    color: #fff !important;
+  
+    font-size: 16px !important;
     font-weight: 900 !important;
-    box-shadow: 0 0 28px rgba(229, 9, 20, 0.5) !important;
+    letter-spacing: -0.5px !important;
+  
+    box-shadow: 0 2px 12px rgba(229, 9, 20, 0.4) !important;
   }
   
   body.hist-page .mu-brand__text {
     display: inline-block !important;
-    font-size: 27px !important;
-    font-weight: 900 !important;
-    letter-spacing: 0.02em !important;
+  
+    font-size: 18px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+  
+    color: #fff !important;
   }
   
   /* Menu */
   body.hist-page .mu-nav {
-    gap: 18px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    margin-left: 8px !important;
+  }
+  
+  body.hist-page .mu-nav a {
+    position: relative !important;
+  
+    display: flex !important;
+    align-items: center !important;
+  
+    padding: 6px 10px !important;
+    border-radius: 6px !important;
+  
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    line-height: normal !important;
+  
+    color: rgba(255, 255, 255, 0.72) !important;
+    background: transparent !important;
+    white-space: nowrap !important;
+  
+    transition: color 0.18s ease, background 0.18s ease !important;
+  }
+  
+  body.hist-page .mu-nav a:hover {
+    color: #fff !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+  }
+  
+  body.hist-page .mu-nav a.is-active,
+  body.hist-page .mu-nav a.is-logged-in {
+    color: #fff !important;
+  }
+  
+  /* Right icons */
+  body.hist-page .mu-header__actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    margin-left: auto !important;
+  }
+  
+  body.hist-page .mu-icon-btn {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% !important;
+  
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  
+    background: transparent !important;
+    border: none !important;
+    color: rgba(255, 255, 255, 0.8) !important;
+  
+    padding: 0 !important;
+  }
+  
+  body.hist-page .mu-icon-btn:hover {
+    color: #fff !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    transform: scale(1.08) !important;
+  }
+  
+  body.hist-page .mu-icon-btn svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  
+  /* Avatar */
+  body.hist-page .mu-avatar-btn {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 50% !important;
+  
+    padding: 0 !important;
+    overflow: hidden !important;
+  
+    border: 2px solid rgba(255, 255, 255, 0.2) !important;
+    background: transparent !important;
+  }
+  
+  body.hist-page .mu-avatar {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 50% !important;
+  }
+  
+  /* Đẩy nội dung xuống để không bị header đè */
+  body.hist-page .hist-wrap {
+    padding-top: 60px !important;
+  }
+  
+  /* Mobile giống Home */
+  @media (max-width: 960px) {
+    body.hist-page .mu-nav {
+      display: none !important;
+    }
+  
+    body.hist-page .mu-burger {
+      display: flex !important;
+    }
+  
+    body.hist-page .mu-brand__text {
+      display: none !important;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    body.hist-page .mu-header__inner {
+      width: calc(100% - 28px) !important;
+    }
+  
+    body.hist-page .hist-wrap {
+      padding-top: 60px !important;
+    }
+  }
+
+  /* ============================================================
+   TWEAK: History header slightly larger than Home
+   ============================================================ */
+
+body.hist-page .mu-header__inner {
+  height: 66px !important;
+}
+
+body.hist-page .mu-brand__mark {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 8px !important;
+  font-size: 18px !important;
+}
+
+body.hist-page .mu-brand__text {
+  font-size: 20px !important;
+  font-weight: 850 !important;
+}
+
+body.hist-page .mu-nav a {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  padding: 7px 11px !important;
+}
+
+body.hist-page .mu-icon-btn,
+body.hist-page .mu-avatar-btn {
+  width: 40px !important;
+  height: 40px !important;
+}
+
+body.hist-page .mu-icon-btn svg {
+  width: 21px !important;
+  height: 21px !important;
+}
+
+body.hist-page .hist-wrap {
+  padding-top: 66px !important;
+}
+/* ============================================================
+   TWEAK: History header larger + still balanced
+   ============================================================ */
+
+   body.hist-page .mu-header__inner {
+    height: 72px !important;
+  }
+  
+  body.hist-page .mu-brand__mark {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 10px !important;
+    font-size: 21px !important;
+  }
+  
+  body.hist-page .mu-brand__text {
+    font-size: 23px !important;
+    font-weight: 850 !important;
+    letter-spacing: 0.06em !important;
+  }
+  
+  body.hist-page .mu-nav {
+    gap: 8px !important;
     margin-left: 14px !important;
   }
   
   body.hist-page .mu-nav a {
-    padding: 8px 0 !important;
-    font-size: 16px !important;
-    font-weight: 800 !important;
-    color: rgba(255, 255, 255, 0.78) !important;
+    font-size: 15px !important;
+    font-weight: 650 !important;
+    padding: 8px 12px !important;
   }
   
-  body.hist-page .mu-nav a:hover,
-  body.hist-page .mu-nav a.is-active {
-    color: #fff !important;
-    background: transparent !important;
-  }
-  
-  /* Icon bên phải */
   body.hist-page .mu-header__actions {
-    gap: 14px !important;
+    gap: 10px !important;
   }
   
-  body.hist-page .mu-icon-btn {
-    width: 48px !important;
-    height: 48px !important;
-    background: rgba(255, 255, 255, 0.06) !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  }
-  
+  body.hist-page .mu-icon-btn,
   body.hist-page .mu-avatar-btn {
-    width: 52px !important;
-    height: 52px !important;
+    width: 44px !important;
+    height: 44px !important;
   }
   
-  /* Đẩy content xuống đúng chiều cao header */
+  body.hist-page .mu-icon-btn svg {
+    width: 22px !important;
+    height: 22px !important;
+  }
+  
   body.hist-page .hist-wrap {
-    padding-top: 76px !important;
+    padding-top: 72px !important;
   }
-  
-  /* Mobile */
-  @media (max-width: 768px) {
-    body.hist-page .mu-header,
-    body.hist-page .mu-header__inner {
-      height: 66px !important;
-    }
-  
-    body.hist-page .mu-header__inner {
-      width: calc(100% - 28px) !important;
-      gap: 12px !important;
-    }
-  
-    body.hist-page .mu-brand__mark {
-      width: 44px !important;
-      height: 44px !important;
-      font-size: 22px !important;
-    }
-  
-    body.hist-page .mu-brand__text {
-      font-size: 22px !important;
-    }
-  
-    body.hist-page .hist-wrap {
-      padding-top: 66px !important;
-    }
+
+  /* ============================================================
+   WATCH HISTORY HEADER = HOME HEADER 100%
+   Paste at the very END of History CSS
+   ============================================================ */
+
+body.hist-page {
+  --mu-accent: #e50914;
+}
+
+/* Header */
+body.hist-page .mu-header {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 1200 !important;
+
+  height: 72px !important;
+
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.68) 0%,
+    rgba(0, 0, 0, 0.42) 55%,
+    rgba(0, 0, 0, 0.12) 100%
+  ) !important;
+
+  backdrop-filter: blur(22px) saturate(160%) brightness(0.9) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(160%) brightness(0.9) !important;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+
+  box-shadow:
+    0 10px 34px rgba(0, 0, 0, 0.42),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04) !important;
+
+  transition:
+    background 0.35s ease,
+    backdrop-filter 0.35s ease,
+    box-shadow 0.35s ease,
+    transform 0.28s ease !important;
+}
+
+body.hist-page .mu-header::after {
+  content: "" !important;
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: -28px !important;
+  height: 28px !important;
+  pointer-events: none !important;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0)) !important;
+}
+
+body.hist-page .mu-header.is-solid,
+body.hist-page .mu-header.scrolled {
+  background: linear-gradient(
+    to bottom,
+    rgba(5, 5, 5, 0.92) 0%,
+    rgba(5, 5, 5, 0.82) 100%
+  ) !important;
+
+  backdrop-filter: blur(26px) saturate(170%) brightness(0.86) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(170%) brightness(0.86) !important;
+
+  box-shadow:
+    0 14px 42px rgba(0, 0, 0, 0.68),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Inner */
+body.hist-page .mu-header__inner {
+  height: 72px !important;
+  width: min(1440px, calc(100% - 96px)) !important;
+  max-width: none !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 26px !important;
+}
+
+/* Logo */
+body.hist-page .mu-brand {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  flex-shrink: 0 !important;
+  text-decoration: none !important;
+}
+
+body.hist-page .mu-brand__mark {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 13px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  background: linear-gradient(135deg, #ff0712, #b00610) !important;
+  box-shadow: 0 0 22px rgba(229, 9, 20, 0.5) !important;
+
+  color: #fff !important;
+  font-size: 24px !important;
+  font-weight: 800 !important;
+}
+
+body.hist-page .mu-brand__text {
+  display: inline-block !important;
+  font-size: 24px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.04em !important;
+  color: #fff !important;
+  text-transform: none !important;
+}
+
+/* Nav */
+body.hist-page .mu-nav {
+  display: flex !important;
+  align-items: center !important;
+  gap: 20px !important;
+  margin-left: 24px !important;
+  flex: 1 !important;
+}
+
+body.hist-page .mu-nav a {
+  position: relative !important;
+  padding: 8px 2px !important;
+  border-radius: 0 !important;
+
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  line-height: normal !important;
+
+  color: rgba(255, 255, 255, 0.72) !important;
+  background: transparent !important;
+  text-decoration: none !important;
+  white-space: nowrap !important;
+
+  transition: color 0.2s ease !important;
+}
+
+body.hist-page .mu-nav a:hover,
+body.hist-page .mu-nav a.is-active {
+  color: #fff !important;
+  background: transparent !important;
+}
+
+body.hist-page .mu-nav a.is-active::after {
+  content: "" !important;
+  position: absolute !important;
+  bottom: -9px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+
+  width: 20px !important;
+  height: 3px !important;
+  border-radius: 999px !important;
+
+  background: var(--mu-accent) !important;
+  box-shadow: 0 0 14px rgba(229, 9, 20, 0.8) !important;
+}
+
+/* Right actions */
+body.hist-page .mu-header__actions {
+  margin-left: auto !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  flex-shrink: 0 !important;
+}
+
+body.hist-page .mu-icon-btn,
+body.hist-page .mu-avatar-btn {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  max-width: 44px !important;
+
+  border-radius: 999px !important;
+  padding: 0 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+
+  color: rgba(255, 255, 255, 0.8) !important;
+  overflow: hidden !important;
+
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease !important;
+}
+
+body.hist-page .mu-icon-btn:hover,
+body.hist-page .mu-avatar-btn:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border-color: rgba(255, 255, 255, 0.32) !important;
+  transform: translateY(-1px) scale(1.04) !important;
+}
+
+body.hist-page .mu-icon-btn svg {
+  width: 19px !important;
+  height: 19px !important;
+  display: block !important;
+}
+
+body.hist-page .mu-avatar,
+body.hist-page .mu-avatar-btn .mu-avatar {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 999px !important;
+  object-fit: cover !important;
+  border: none !important;
+  display: block !important;
+}
+
+/* Notification badge */
+body.hist-page .mu-icon-badge {
+  position: absolute !important;
+  top: 4px !important;
+  right: 4px !important;
+
+  min-width: 16px !important;
+  height: 16px !important;
+  padding: 0 4px !important;
+
+  border-radius: 999px !important;
+  background: var(--mu-accent) !important;
+  color: #fff !important;
+
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  line-height: 16px !important;
+  text-align: center !important;
+
+  box-shadow: 0 0 0 2px #111 !important;
+}
+
+/* Đẩy content xuống đúng bằng header */
+body.hist-page .hist-wrap {
+  padding-top: 72px !important;
+}
+
+/* Mobile giống Home */
+@media (max-width: 900px) {
+  body.hist-page .mu-header__inner {
+    width: auto !important;
+    padding: 0 18px !important;
+    gap: 18px !important;
   }
+
+  body.hist-page .mu-brand__text {
+    display: none !important;
+  }
+
+  body.hist-page .mu-nav {
+    gap: 16px !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+
+  body.hist-page .mu-nav::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  body.hist-page .mu-nav a {
+    white-space: nowrap !important;
+    font-size: 14px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  body.hist-page .mu-header,
+  body.hist-page .mu-header__inner {
+    height: 64px !important;
+  }
+
+  body.hist-page .mu-icon-btn,
+  body.hist-page .mu-icon-btn--search,
+  body.hist-page .mu-icon-btn--bell,
+  body.hist-page .mu-avatar-btn {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+  }
+
+  body.hist-page .hist-wrap {
+    padding-top: 64px !important;
+  }
+}
+
+/* ============================================================
+   FIX: History page profile dropdown + notifications dropdown
+   ============================================================ */
+
+/* PROFILE DROPDOWN */
+body.hist-page .mu-user-dropdown {
+  top: calc(100% + 12px) !important;
+  right: 0 !important;
+
+  width: 270px !important;
+  padding: 10px 0 !important;
+
+  background: rgba(18, 18, 18, 0.96) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 16px !important;
+
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.72) !important;
+  backdrop-filter: blur(24px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(150%) !important;
+
+  overflow: hidden !important;
+  z-index: 5000 !important;
+}
+
+body.hist-page .mu-user-dropdown__header {
+  padding: 12px 16px 14px !important;
+  gap: 12px !important;
+
+  display: flex !important;
+  align-items: center !important;
+
+  background: rgba(255, 255, 255, 0.035) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+body.hist-page .mu-user-dropdown__avatar {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 50% !important;
+  flex-shrink: 0 !important;
+
+  border: 2px solid rgba(255, 255, 255, 0.18) !important;
+  object-fit: cover !important;
+}
+
+body.hist-page .mu-user-dropdown__name {
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  color: #fff !important;
+  line-height: 1.2 !important;
+}
+
+body.hist-page .mu-user-dropdown__email {
+  margin-top: 4px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: rgba(255, 255, 255, 0.55) !important;
+}
+
+body.hist-page .mu-user-dropdown__item {
+  min-height: 36px !important;
+  padding: 9px 16px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+
+  font-size: 14px !important;
+  font-weight: 650 !important;
+  color: rgba(255, 255, 255, 0.82) !important;
+
+  background: transparent !important;
+  transition: background 0.16s ease, color 0.16s ease, padding-left 0.16s ease !important;
+}
+
+body.hist-page .mu-user-dropdown__item:hover {
+  padding-left: 20px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #fff !important;
+}
+
+body.hist-page .mu-user-dropdown__item svg,
+body.hist-page .mu-user-dropdown__item i {
+  width: 18px !important;
+  height: 18px !important;
+  flex-shrink: 0 !important;
+}
+
+/* body.hist-page .mu-user-dropdown__item--vip {
+  color: #ffd700 !important;
+} */
+
+body.hist-page .mu-user-dropdown__item--vip:hover {
+  background: rgba(255, 215, 0, 0.1) !important;
+  color: #ffd700 !important;
+}
+
+body.hist-page .mu-user-dropdown__item--logout {
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  margin-top: 4px !important;
+}
+
+body.hist-page .mu-user-dropdown__item--logout:hover {
+  background: rgba(229, 9, 20, 0.12) !important;
+  color: #ff2a34 !important;
+}
+
+/* NOTIFICATIONS DROPDOWN */
+body.hist-page .mu-notifications-dropdown {
+  top: 84px !important;
+  right: 40px !important;
+
+  width: 420px !important;
+  max-width: calc(100vw - 80px) !important;
+  min-height: 180px !important;
+
+  background: rgba(18, 18, 18, 0.96) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 18px !important;
+
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.78) !important;
+  backdrop-filter: blur(24px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(150%) !important;
+
+  overflow: hidden !important;
+  z-index: 5100 !important;
+}
+
+body.hist-page .mu-notifications-dropdown__header {
+  padding: 16px 18px !important;
+  min-height: 54px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+body.hist-page .mu-notifications-dropdown__title {
+  font-size: 17px !important;
+  font-weight: 800 !important;
+  color: #fff !important;
+  margin: 0 !important;
+}
+
+body.hist-page .mu-notifications-dropdown__close {
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 50% !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  color: rgba(255, 255, 255, 0.55) !important;
+  background: transparent !important;
+}
+
+body.hist-page .mu-notifications-dropdown__close:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #fff !important;
+}
+
+body.hist-page .mu-notifications-dropdown__body {
+  min-height: 150px !important;
+  padding: 24px 20px 28px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+body.hist-page .mu-notifications-dropdown__empty {
+  padding: 0 !important;
+  gap: 14px !important;
+  text-align: center !important;
+  color: rgba(255, 255, 255, 0.58) !important;
+}
+
+body.hist-page .mu-notifications-dropdown__empty svg {
+  width: 48px !important;
+  height: 48px !important;
+  stroke-width: 1.7 !important;
+  opacity: 0.8 !important;
+}
+
+body.hist-page .mu-notifications-dropdown__empty p {
+  font-size: 15px !important;
+  font-weight: 650 !important;
+  color: rgba(255, 255, 255, 0.58) !important;
+  margin: 0 !important;
+}
+
+/* tránh 2 dropdown chồng khó nhìn */
+body.hist-page .mu-notifications-backdrop {
+  z-index: 5050 !important;
+  background: rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  body.hist-page .mu-user-dropdown {
+    right: -4px !important;
+    width: 250px !important;
+  }
+
+  body.hist-page .mu-notifications-dropdown {
+    top: 76px !important;
+    right: 14px !important;
+    width: calc(100vw - 28px) !important;
+    max-width: calc(100vw - 28px) !important;
+  }
+}

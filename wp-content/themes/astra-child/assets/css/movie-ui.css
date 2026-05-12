@@ -191,29 +191,6 @@ body.movie-ui--no-sidebar .widget-area {
   font-size: 14px;
 }
 
-/* ============================================================
-   HEADER / NAVBAR
-   ============================================================ */
-.mu-header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1200;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.82) 0%,
-    rgba(0, 0, 0, 0.4) 40%,
-    rgba(0, 0, 0, 0) 100%
-  );
-  transition: background 0.35s var(--mu-ease), box-shadow 0.35s var(--mu-ease);
-  will-change: background;
-}
-
-.mu-header.is-solid {
-  background: var(--mu-bg-2) !important;
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
-}
 
 /* WP Admin Bar compensation */
 body.admin-bar .mu-header,
@@ -2532,7 +2509,7 @@ body.admin-bar .mu-notifications-backdrop {
   padding: 0 0 12px;
 }
 
-/* ===== MOVIE HEADER — unified premium glass header ===== */
+/* ===== MOVIE HEADER â€” unified premium glass header ===== */
 
 .mu-header {
   position: fixed;

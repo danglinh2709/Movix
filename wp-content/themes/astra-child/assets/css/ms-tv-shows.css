@@ -1016,16 +1016,7 @@ body.tv-page .tv-hero {
     margin-top: 18px !important;
 }
 
-/* Nếu header đang fixed/absolute thì giữ header nổi đẹp */
-body.tv-page .mu-header {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    z-index: 9999 !important;
-}
-
-/* Mobile */
+/*/* Mobile */
 @media (max-width: 768px) {
     body.tv-page .tv-wrap {
         padding-top: 72px !important;
@@ -1207,7 +1198,7 @@ body.tv-page .tv-genre.active {
     box-shadow: 0 6px 20px rgba(229, 9, 20, 0.38) !important;
 }
 
-/* tạo fade nhẹ hai bên khi danh mục dài */
+/* tÃ¡ÂºÂ¡o fade nhÃ¡ÂºÂ¹ hai bÃƒÂªn khi danh mÃ¡Â»Â¥c dÃƒÂ i */
 body.tv-page .tv-genres::before,
 body.tv-page .tv-genres::after {
     content: "" !important;
@@ -1272,7 +1263,7 @@ body.tv-page .tv-genres__inner {
     scroll-behavior: smooth !important;
 }
 
-/* Ẩn scrollbar ngang cho đẹp */
+/* Ã¡ÂºÂ¨n scrollbar ngang cho Ã„â€˜Ã¡ÂºÂ¹p */
 body.tv-page .tv-genres__inner::-webkit-scrollbar {
     display: none !important;
 }
@@ -1328,7 +1319,7 @@ body.tv-page .tv-genres__inner::-webkit-scrollbar {
        display: block !important;
    }
    
-   /* tránh bị taskbar Windows che */
+   /* trÃƒÂ¡nh bÃ¡Â»â€¹ taskbar Windows che */
    @media (max-width: 768px) {
        body.tv-page a[href="#top"],
        body.tv-page .back-to-top,
@@ -1366,7 +1357,7 @@ body.tv-page .tv-genres__inner {
     scroll-behavior: smooth !important;
 }
 
-/* Ẩn scrollbar ngang cho đẹp */
+/* Ã¡ÂºÂ¨n scrollbar ngang cho Ã„â€˜Ã¡ÂºÂ¹p */
 body.tv-page .tv-genres__inner::-webkit-scrollbar {
     display: none !important;
 }
@@ -1404,7 +1395,7 @@ body.tv-page .tv-genres__inner::-webkit-scrollbar {
        height: 15px !important;
    }
    
-   /* Nếu icon là dạng ::before */
+   /* NÃ¡ÂºÂ¿u icon lÃƒÂ  dÃ¡ÂºÂ¡ng ::before */
    body.tv-page #ast-scroll-top::before,
    body.tv-page .ast-scroll-top-icon::before,
    body.tv-page .back-to-top::before,
