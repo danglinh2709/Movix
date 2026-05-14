@@ -82,14 +82,15 @@
 .profile-page .pp-container {
   max-width: 1440px;
   margin: 0 auto;
-  padding: 0 32px;
-  padding-top: calc(var(--pp-header-height, 50px) + 12px);
+  padding: 0 31px;
+  padding-top: calc(var(--pp-header-height, 20px) + 2px);
+  margin-top: -20px;
 }
 
 @media (max-width: 768px) {
   .profile-page .pp-container {
     padding: 0 16px;
-    padding-top: calc(var(--pp-header-height, 50px) + 5px);
+    padding-top: calc(var(--pp-header-height, 20px) + 5px);
   }
 }
 
