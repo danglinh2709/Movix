@@ -305,3 +305,5 @@ Movix-main/
   <b>© 2026 Movix – Website Xem Phim Trực Tuyến</b><br>
   <i>Đồ án môn học – Đại học</i>
 </p>
+
+Link video demo project : https://drive.google.com/file/d/1BTODFJZLTh8MX8i6ThzAWgQCj9Ghmk_e/view?usp=drive_link
